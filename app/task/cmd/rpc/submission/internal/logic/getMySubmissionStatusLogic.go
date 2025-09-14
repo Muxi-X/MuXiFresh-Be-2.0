@@ -26,13 +26,23 @@ func NewGetMySubmissionStatusLogic(ctx context.Context, svcCtx *svc.ServiceConte
 
 func (l *GetMySubmissionStatusLogic) GetMySubmissionStatus(in *pb.GetMySubmissionStatusReq) (*pb.GetMySubmissionStatusResp, error) {
 
-	submission, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
-	status := globalKey.Submitted
+	submissions, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
 	if err != nil {
-		status = globalKey.NotSubmitted
-	} else {
-		if submission.Status == globalKey.Reviewed {
+		// 查询出错，返回错误
+		return nil, err
+	}
+	if len(submissions) == 0 {
+		// 没有任何提交
+		return &pb.GetMySubmissionStatusResp{
+			Status: globalKey.NotSubmitted,
+		}, nil
+	}
+	// 默认状态
+	status := globalKey.Submitted
+	for _, s := range submissions {
+		if s.Status == globalKey.Reviewed {
 			status = globalKey.Reviewed
+			break // 有已批改的就优先返回
 		}
 	}
 	return &pb.GetMySubmissionStatusResp{

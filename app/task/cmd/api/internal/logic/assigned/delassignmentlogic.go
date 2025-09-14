@@ -14,22 +14,22 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type SetAssignmentLogic struct {
+type DelAssignmentLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
-func NewSetAssignmentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetAssignmentLogic {
-	return &SetAssignmentLogic{
+// 删除指定作业(题目)
+func NewDelAssignmentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DelAssignmentLogic {
+	return &DelAssignmentLogic{
 		Logger: logx.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
 }
 
-func (l *SetAssignmentLogic) SetAssignment(req *types.SetAssignmentReq) (resp *types.SetAssignmentResp, err error) {
-
+func (l *DelAssignmentLogic) DelAssignment(req *types.DelAssignmentReq) (resp *types.DelAssignmentResp, err error) {
 	//管理员身份认证
 	getUserTypeResp, err := l.svcCtx.UserClient.GetUserType(l.ctx, &userclient.GetUserTypeReq{
 		UserId: ctxData.GetUserIdFromCtx(l.ctx),
@@ -40,19 +40,10 @@ func (l *SetAssignmentLogic) SetAssignment(req *types.SetAssignmentReq) (resp *t
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
 		return nil, errors.New("permission denied")
 	}
-	//布置
-	setAssignmentResp, err := l.svcCtx.AssignmentClient.SetAssignment(l.ctx, &assignmentclient.SetAssignmentReq{
+	delAssignment, err := l.svcCtx.AssignmentClient.DelAssignment(l.ctx, &assignmentclient.DelAssignmentReq{
 		AssignmentID: req.AssignmentID,
-		Group:        req.Group,
-		TitleText:    req.TitleText,
-		Content:      req.Content,
-		Urls:         req.Urls,
-		Deadline:     req.Deadline,
-		Semester:     req.Semester,
-		Year:         int64(req.Year),
 	})
-	if err != nil {
-		return nil, err
-	}
-	return &types.SetAssignmentResp{Flag: setAssignmentResp.Flag}, nil
+	return &types.DelAssignmentResp{
+		Flag: delAssignment.Flag,
+	}, nil
 }

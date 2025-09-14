@@ -13,4 +13,5 @@ type Comment struct {
 	Content      string             `bson:"content,omitempty" json:"content,omitempty"`
 	UpdateAt     time.Time          `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
 	CreateAt     time.Time          `bson:"createAt,omitempty" json:"createAt,omitempty"`
+	FatherId     primitive.ObjectID `bson:"father_id,omitempty" json:"father_id,omitempty"`
 }

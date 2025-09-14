@@ -1,11 +1,12 @@
 syntax = "v1"
 
-info(
-	title: "review"
-	desc: "api( get userinfo )and( review )"
+info (
+	title:  "review"
+	desc:   "api( get userinfo )and( review )"
 	author: "BIGDUST"
-	email: "3264085417@qq.com"
+	email:  "3264085417@qq.com"
 )
+
 //获取审阅界面
 type GetReviewReq {
 	Authorization string `header:"Authorization"`
@@ -22,34 +23,58 @@ type Row {
 	Grade           string `json:"grader"`
 	School          string `json:"school"`
 	Group           string `json:"group"`
+	Gender          string `json:"gender"`
 	FormID          string `json:"form_id"`
 	ExamStuatus     string `json:"exam_status"`
 	UserId          string `json:"user_id"`
 	AdmissionStatus string `json:"admission_status"`
 	ScheduleID      string `json:"schedule_id"`
+	Understanding   string `json:"understanding"`
+	Reason          string `json:"reason"`
+	SelfIntro       string `json:"selfintro"`
 }
 
 type GetReviewResp {
 	Rows []Row `json:"rows"`
 }
+
 //调整录取状态
 type SetAdmissionStatusReq {
 	Authorization string `header:"Authorization"`
 	ScheduleID    string `json:"schedule_id"`
 	NewStatus     string `json:"new_status,options=[已报名,实习期,已转正]"`
 }
+
 type SetAdmissionStatusResp {
 	Flag bool `json:"flag"`
 }
-@server(
+
+// 导出 Excel 请求
+type ExportReviewExcelReq {
+	Authorization string `header:"Authorization"`
+	Year          int    `json:"year"`
+	Season        string `json:"season,options=[autumn,spring]"`
+	Group         string `json:"group,optional"` // 如果为空，导出所有组
+	Grade         string `json:"grade,optional"`
+	School        string `json:"school,optional"`
+	Status        string `json:"status,optional"`
+}
+
+@server (
 	prefix: /api/v2
-	jwt: JwtAuth
+	jwt:    JwtAuth
 )
 service review {
-	@doc"审阅界面"
+	@doc "审阅界面"
 	@handler GetReview
 	post /review (GetReviewReq) returns (GetReviewResp)
-	@doc"调整录取状态"
+
+	@doc "调整录取状态"
 	@handler SetAdmissionStatus
 	post /review/admission_status (SetAdmissionStatusReq) returns (SetAdmissionStatusResp)
+
+	@doc "一键导出 Excel（包含每个组的名单）"
+	@handler ExportReviewExcel
+	post /review/export (ExportReviewExcelReq)
 }
+

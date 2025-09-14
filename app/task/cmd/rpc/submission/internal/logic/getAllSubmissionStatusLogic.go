@@ -41,13 +41,14 @@ func (l *GetAllSubmissionStatusLogic) GetAllSubmissionStatus(in *pb.GetAllSubmis
 		}
 
 		completions = append(completions, &pb.Completion{
-			UserId: entryForm.UserId.String()[10:34],
-			Name:   userInfo.Name,
-			Avatar: entryForm.Avatar,
-			Email:  userInfo.Email,
-			Grade:  entryForm.Grade,
-			School: userInfo.School,
-			Status: submission.Status,
+			UserId:  entryForm.UserId.String()[10:34],
+			Name:    userInfo.Name,
+			Avatar:  entryForm.Avatar,
+			Email:   userInfo.Email,
+			Grade:   entryForm.Grade,
+			School:  userInfo.School,
+			Status:  submission.Status,
+			Version: submission.Version,
 		})
 	}
 	return &pb.GetAllSubmissionStatusResp{

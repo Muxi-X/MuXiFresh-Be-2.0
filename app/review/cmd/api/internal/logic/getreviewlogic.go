@@ -78,6 +78,7 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 			Grade:           entryForm.Grade,
 			School:          userInfo.School,
 			Group:           entryForm.Group,
+			Gender:          entryForm.Gender,
 			FormID:          entryForm.ID.String()[10:34],
 			ExamStuatus:     examStatus,
 			UserId:          userId,

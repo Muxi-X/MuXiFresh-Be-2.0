@@ -32,5 +32,6 @@ func (l *GetAssignmentInfoLogic) GetAssignmentInfo(in *pb.GetAssignmentInfoReq) 
 		TitleText: assignment.TitleText,
 		Content:   assignment.Content,
 		Urls:      assignment.Urls,
+		Deadline:  assignment.Deadline,
 	}, nil
 }
