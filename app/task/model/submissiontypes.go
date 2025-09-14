@@ -12,6 +12,7 @@ type Submission struct {
 	AssignmentID primitive.ObjectID `bson:"assignment_id,omitempty" json:"assignment_id,omitempty"`
 	Urls         []string           `bson:"urls,omitempty" json:"urls,omitempty"`
 	Status       string             `bson:"status,omitempty" json:"status,omitempty"`
+	Version      int64              `bson:"version,omitempty" json:"version,omitempty"`
 	UpdateAt     time.Time          `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
 	CreateAt     time.Time          `bson:"createAt,omitempty" json:"createAt,omitempty"`
 }

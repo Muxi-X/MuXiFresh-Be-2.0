@@ -32,8 +32,26 @@ func (l *GetSubmissionCommentLogic) GetSubmissionComment(req *types.GetSubmissio
 		return nil, err
 	}
 	var comments []types.Comment
-	copier.Copy(&comments, &getCommentResp.Comments)
+	err = copier.Copy(&comments, &getCommentResp.Comments)
+	if err != nil {
+		return nil, err
+	}
+	commentMap := make(map[string]int)
+	var index = 0
+	var tree []types.Comment
+	for _, comment := range comments {
+		if comment.FatherID == "000000000000000000000000" {
+			tree = append(tree, comment)
+			commentMap[comment.CommentID] = index
+			index++
+		}
+	}
+	for _, comment := range comments {
+		if _, ok := commentMap[comment.CommentID]; !ok {
+			tree[commentMap[comment.FatherID]].Replies = append(tree[commentMap[comment.FatherID]].Replies, comment)
+		}
+	}
 	return &types.GetSubmissionCommentResp{
-		Comments: comments,
+		Comments: tree,
 	}, nil
 }

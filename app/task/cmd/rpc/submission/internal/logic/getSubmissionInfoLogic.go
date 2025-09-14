@@ -25,12 +25,19 @@ func NewGetSubmissionInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 
 func (l *GetSubmissionInfoLogic) GetSubmissionInfo(in *pb.GetSubmissionInfoReq) (*pb.GetSubmissionInfoResp, error) {
 
-	submission, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
+	submissions, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
 	if err != nil {
 		return nil, err
 	}
+	var submissionInfos []*pb.SubmissionInfo
+	for _, submission := range submissions {
+		submissionInfos = append(submissionInfos, &pb.SubmissionInfo{
+			SubmissionID: submission.ID.String()[10:34],
+			Urls:         submission.Urls,
+		})
+	}
+
 	return &pb.GetSubmissionInfoResp{
-		SubmissionID: submission.ID.String()[10:34],
-		Urls:         submission.Urls,
+		SubmissionInfos: submissionInfos,
 	}, nil
 }

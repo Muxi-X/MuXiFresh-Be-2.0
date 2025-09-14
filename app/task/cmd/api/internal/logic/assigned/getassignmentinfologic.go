@@ -33,5 +33,7 @@ func (l *GetAssignmentInfoLogic) GetAssignmentInfo(req *types.GetAssignmentInfoR
 		TitleText: getInfoResp.TitleText,
 		Content:   getInfoResp.Content,
 		Urls:      getInfoResp.Urls,
+		Deadline:  getInfoResp.Deadline,
+		Semester:  getInfoResp.Semester,
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"context"
 	"errors"
+	"github.com/jinzhu/copier"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -52,8 +53,9 @@ func (l *GetSubmissionInfoLogic) GetSubmissionInfo(req *types.GetSubmissionInfoR
 	if err != nil {
 		return nil, err
 	}
+	var submissioninfos []types.SubmissionInfo
+	copier.Copy(&submissioninfos, &getSubmissionInfoResp.SubmissionInfos)
 	return &types.GetSubmissionInfoResp{
-		SubmissionID: getSubmissionInfoResp.SubmissionID,
-		Urls:         getSubmissionInfoResp.Urls,
+		SubmissionInfos: submissioninfos,
 	}, nil
 }

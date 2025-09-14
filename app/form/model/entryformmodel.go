@@ -68,7 +68,7 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 	var entryForms []*EntryForm
 	filter := bson.D{}
 	//必选
-	filter = append(filter, bson.E{Key: "group", Value: group}, bson.E{Key: "createAt", Value: bson.M{
+	filter = append(filter, bson.E{Key: "createAt", Value: bson.M{
 		"$gte": startDate, // 大于等于起始时间
 		"$lte": endDate,   // 小于等于结束时间
 	}})
@@ -78,6 +78,9 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 	}
 	if grade != "" {
 		filter = append(filter, bson.E{Key: "grade", Value: grade})
+	}
+	if group != "" {
+		filter = append(filter, bson.E{Key: "group", Value: group})
 	}
 	err := m.conn.Find(ctx, &entryForms, filter, options.Find().SetSort(bson.D{{"name", 1}}))
 

@@ -15,8 +15,9 @@ type (
 	// and implement the added methods in customSubmissionModel.
 	SubmissionModel interface {
 		submissionModel
-		FindByUserIdAndAssignmentID(ctx context.Context, userId, assignmentID string) (*Submission, error)
+		FindByUserIdAndAssignmentID(ctx context.Context, userId, assignmentID string) ([]*Submission, error)
 		FindByAssignmentID(ctx context.Context, assignmentID string) ([]*Submission, error)
+		CountByUserAndAssignment(ctx context.Context, userId, assignmentId string) (int64, error)
 	}
 
 	customSubmissionModel struct {
@@ -32,7 +33,7 @@ func NewSubmissionModel(url, db, collection string) SubmissionModel {
 	}
 }
 
-func (m *customSubmissionModel) FindByUserIdAndAssignmentID(ctx context.Context, userId, assignmentID string) (*Submission, error) {
+func (m *customSubmissionModel) FindByUserIdAndAssignmentID(ctx context.Context, userId, assignmentID string) ([]*Submission, error) {
 	uid, err := primitive.ObjectIDFromHex(userId)
 	if err != nil {
 		return nil, err
@@ -41,11 +42,11 @@ func (m *customSubmissionModel) FindByUserIdAndAssignmentID(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	var submission Submission
-	err = m.conn.FindOne(ctx, &submission, bson.M{"user_id": uid, "assignment_id": aid})
+	var submissions []*Submission
+	err = m.conn.Find(ctx, &submissions, bson.M{"user_id": uid, "assignment_id": aid}, options.Find().SetSort(bson.D{{"version", 1}}))
 	switch err {
 	case nil:
-		return &submission, nil
+		return submissions, nil
 	case mon.ErrNotFound:
 		return nil, ErrNotFound
 	default:
@@ -68,4 +69,19 @@ func (m *customSubmissionModel) FindByAssignmentID(ctx context.Context, assignme
 	default:
 		return nil, err
 	}
+}
+func (m *customSubmissionModel) CountByUserAndAssignment(ctx context.Context, userId, assignmentId string) (int64, error) {
+	userid, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return 0, ErrInvalidObjectId
+	}
+	assignmentID, err := primitive.ObjectIDFromHex(assignmentId)
+	if err != nil {
+		return 0, ErrInvalidObjectId
+	}
+	filter := bson.M{
+		"user_id":       userid,
+		"assignment_id": assignmentID,
+	}
+	return m.conn.CountDocuments(ctx, filter)
 }

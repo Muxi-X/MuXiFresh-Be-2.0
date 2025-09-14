@@ -12,8 +12,11 @@ message Comment {
   string CommentID = 1;
   string Avatar = 2;
   string NickName = 3;
-  string Group = 4;
-  string Content = 5;
+  string Name = 4;
+  string Group = 5;
+  string Content = 6;
+  string FatherID = 7;
+  string CreateTime = 8;
 }
 
 message GetSubmissionCommentResp {
@@ -43,9 +46,22 @@ message IsMyCommentReq {
 message IsMyCommentResp {
   bool Flag = 1;
 }
+// reply
+message ReplySubmissionCommentReq {
+  string userId = 1;
+  string submissionID = 2;
+  string fatherID = 3;   // 父评论 ID，必填
+  string content = 4;
+}
+
+message ReplySubmissionCommentResp {
+  bool flag = 1;
+}
+
 service commentClient {
   rpc GetSubmissionComment(GetSubmissionCommentReq) returns(GetSubmissionCommentResp);
   rpc SetSubmissionComment(SetSubmissionCommentReq) returns(SetSubmissionCommentResp);
   rpc DelSubmissionComment(DelSubmissionCommentReq) returns(DelSubmissionCommentResp);
   rpc IsMyComment(IsMyCommentReq) returns(IsMyCommentResp);
+  rpc ReplySubmissionComment(ReplySubmissionCommentReq) returns (ReplySubmissionCommentResp); // 新增接口
 }

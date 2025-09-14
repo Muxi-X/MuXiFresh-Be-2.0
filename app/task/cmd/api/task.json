@@ -245,6 +245,40 @@
         ]
       }
     },
+    "api/v2/task/submitted/{id}/comment/reply": {
+      "post": {
+        "summary": "回复指定作业评论",
+        "operationId": "ReplySubmissionComment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ReplySubmissionCommentResp"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReplySubmissionCommentReq"
+            }
+          }
+        ],
+        "requestBody": {},
+        "tags": [
+          "comment"
+        ]
+      }
+    },
     "api/v2/task/submitted/{id}/comment": {
       "get": {
         "summary": "获取指定作业的评论",
@@ -585,6 +619,43 @@
       "title": "GetSubmissionCommentResp",
       "required": [
         "comments"
+      ]
+    },
+    "ReplySubmissionCommentReq": {
+      "type": "object",
+      "properties": {
+        "Authorization": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "father_id": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "title": "ReplySubmissionCommentReq",
+      "required": [
+        "Authorization",
+        "id",
+        "father_id",
+        "content"
+      ]
+    },
+    "ReplySubmissionCommentResp": {
+      "type": "object",
+      "properties": {
+        "flag": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      },
+      "title": "ReplySubmissionCommentResp",
+      "required": [
+        "flag"
       ]
     },
     "GetSubmissionInfoReq": {

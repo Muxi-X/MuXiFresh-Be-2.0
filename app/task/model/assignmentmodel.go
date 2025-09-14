@@ -14,6 +14,7 @@ type (
 	AssignmentModel interface {
 		assignmentModel
 		FindByGroup(ctx context.Context, group string) ([]*Assignment, error)
+		FindByGroupYearandSemester(ctx context.Context, group string, year int64, semester string) ([]*Assignment, error)
 	}
 
 	customAssignmentModel struct {
@@ -32,6 +33,18 @@ func NewAssignmentModel(url, db, collection string) AssignmentModel {
 func (m *customAssignmentModel) FindByGroup(ctx context.Context, group string) ([]*Assignment, error) {
 	var assignment []*Assignment
 	err := m.conn.Find(ctx, &assignment, bson.M{"group": group})
+	switch err {
+	case nil:
+		return assignment, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+func (m *customAssignmentModel) FindByGroupYearandSemester(ctx context.Context, group string, year int64, semester string) ([]*Assignment, error) {
+	var assignment []*Assignment
+	err := m.conn.Find(ctx, &assignment, bson.M{"group": group, "year": year, "semester": semester})
 	switch err {
 	case nil:
 		return assignment, nil
