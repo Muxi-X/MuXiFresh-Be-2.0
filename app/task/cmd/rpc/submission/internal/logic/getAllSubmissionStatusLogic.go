@@ -1,9 +1,10 @@
 package logic
 
 import (
+	"context"
+
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/submission/internal/svc"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/submission/pb"
-	"context"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -48,7 +49,7 @@ func (l *GetAllSubmissionStatusLogic) GetAllSubmissionStatus(in *pb.GetAllSubmis
 			Grade:   entryForm.Grade,
 			School:  userInfo.School,
 			Status:  submission.Status,
-			Version: submission.Version,
+			Version: submission.VersionNum,
 		})
 	}
 	return &pb.GetAllSubmissionStatusResp{

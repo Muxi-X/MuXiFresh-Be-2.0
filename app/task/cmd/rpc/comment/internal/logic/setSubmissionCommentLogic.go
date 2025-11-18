@@ -49,13 +49,17 @@ func (l *SetSubmissionCommentLogic) SetSubmissionComment(in *pb.SetSubmissionCom
 		return nil, err
 	}
 
-	submission := model.Submission{
-		ID:     submissionId,
-		Status: globalKey.Reviewed,
-	}
+	//如果是管理员权限才更新审阅状态
+	userInfo, err := l.svcCtx.UserInfoModel.FindOne(l.ctx, in.UserId)
+	if userInfo.UserType == globalKey.Admin || userInfo.UserType == globalKey.SuperAdmin {
+		submission := model.Submission{
+			ID:     submissionId,
+			Status: globalKey.Reviewed,
+		}
 
-	if _, err = l.svcCtx.SubmissionModel.Update(l.ctx, &submission); err != nil {
-		return nil, err
+		if _, err = l.svcCtx.SubmissionModel.Update(l.ctx, &submission); err != nil {
+			return nil, err
+		}
 	}
 
 	return &pb.SetSubmissionCommentResp{

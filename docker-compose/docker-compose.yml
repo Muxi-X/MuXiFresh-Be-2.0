@@ -1,0 +1,102 @@
+version: '3'
+services:
+  caddy:
+    image: caddy:latest
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./fresh-be.muxixyz.com/fresh-be.muxixyz.com_bundle.crt:/fresh-be.muxixyz.com/fresh-be.muxixyz.com_bundle.crt
+      - ./fresh-be.muxixyz.com/fresh-be.muxixyz.com.key:/fresh-be.muxixyz.com/fresh-be.muxixyz.com.key
+    networks:
+      - fresh
+
+  # frontend:
+  #   image: registry.cn-shenzhen.aliyuncs.com/muxi/zhaoxin:2.0.9
+  #   expose: 
+  #     - 4173
+  #   networks:
+  #     - fresh
+
+  auth:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_auth:v0.1.2
+    expose:
+      - 10000
+      - 30000
+    volumes:
+      - ./etc/auth-api.yaml:/MuxiFresh-Be-2.0/userauth/etc/user-auth.yaml
+      - ./etc/accountCenter.yaml:/MuxiFresh-Be-2.0/userauth/etc/accountCenter.yaml
+    networks:
+      - fresh
+
+  user:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_user:v0.0.6
+    expose:
+      - 10000
+      - 30000
+    volumes:
+      - ./etc/user-api.yaml:/MuxiFresh-Be-2.0/user/etc/user-api.yaml
+      - ./etc/user-rpc.yaml:/MuxiFresh-Be-2.0/user/etc/user-rpc.yaml
+    networks:
+      - fresh
+
+  task:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_task:v0.0.7
+    expose:
+      - 10000
+      - 30000
+      - 30100
+      - 30200
+    volumes:
+      - ./etc/task.yaml:/MuxiFresh-Be-2.0/task/etc/task.yaml
+      - ./etc/assignment.yaml:/MuxiFresh-Be-2.0/task/etc/assignment.yaml
+      - ./etc/comment.yaml:/MuxiFresh-Be-2.0/task/etc/comment.yaml
+      - ./etc/submission.yaml:/MuxiFresh-Be-2.0/task/etc/submission.yaml
+    networks:
+      - fresh
+
+  schedule:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_schedule:v0.0.6
+    expose:
+      - 10000
+      - 30000
+    volumes:
+      - ./etc/schedule-api.yaml:/MuxiFresh-Be-2.0/schedule/etc/schedule-api.yaml
+      - ./etc/schedule-rpc.yaml:/MuxiFresh-Be-2.0/schedule/etc/schedule-rpc.yaml
+    networks:
+      - fresh
+
+  review:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_review:v0.0.5
+    expose:
+      - 10000
+    volumes:
+      - ./etc/review.yaml:/MuxiFresh-Be-2.0/review/etc/review.yaml
+    networks:
+      - fresh
+
+  form:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_form:v0.0.7
+    expose:
+      - 10000
+      - 30000
+    volumes:
+      - ./etc/form-api.yaml:/MuxiFresh-Be-2.0/form/etc/form-api.yaml
+      - ./etc/form-rpc.yaml:/MuxiFresh-Be-2.0/form/etc/form-rpc.yaml
+    networks:
+      - fresh
+
+  exam:
+    image: registry.cn-shenzhen.aliyuncs.com/muxi/fresh_be_exam:v0.0.6
+    command: ["./test-api"]
+    expose:
+      - 10000
+      - 30000
+    volumes:
+      - ./etc/exam-api.yaml:/MuxiFresh-Be-2.0/test/etc/test-api.yaml
+    networks:
+      - fresh
+
+networks:
+  fresh:

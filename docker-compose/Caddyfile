@@ -1,0 +1,11 @@
+fresh-be.muxixyz.com {
+	# tls  ./bigdust.top/bigdust.top_bundle.crt ./bigdust.top/bigdust.top.key
+	tls /fresh-be.muxixyz.com/fresh-be.muxixyz.com_bundle.crt /fresh-be.muxixyz.com/fresh-be.muxixyz.com.key
+	reverse_proxy /api/v2/auth* auth:10000
+	reverse_proxy /api/v2/users* user:10000
+	reverse_proxy /api/v2/task* task:10000
+	reverse_proxy /api/v2/review* review:10000
+	reverse_proxy /api/v2/user/test* exam:10000
+	reverse_proxy /api/v2/form* form:10000
+	reverse_proxy /api/v2/schedule* schedule:10000
+}
