@@ -46,6 +46,9 @@ func (l *SetAssignmentLogic) SetAssignment(req *types.SetAssignmentReq) (resp *t
 		TitleText:    req.TitleText,
 		Content:      req.Content,
 		Urls:         req.Urls,
+		Deadline:     req.Deadline,
+		Semester:     req.Semester,
+		Year:         int64(req.Year),
 	})
 	if err != nil {
 		return nil, err

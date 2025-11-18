@@ -28,6 +28,9 @@ message GetSubmissionInfoReq{
 }
 
 message GetSubmissionInfoResp{
+  repeated SubmissionInfo SubmissionInfos = 1;
+}
+message SubmissionInfo{
   string SubmissionID  = 1;
   repeated string Urls = 2;
 }
@@ -43,6 +46,7 @@ message Completion {
   string Grade = 5;
   string School = 6;
   string Status = 7;
+  int64  version = 8;
 }
 message GetAllSubmissionStatusResp{
   repeated Completion Completions = 1;

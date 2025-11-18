@@ -3,7 +3,6 @@ package logic
 import (
 	"MuXiFresh-Be-2.0/app/task/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
@@ -32,11 +31,11 @@ func (l *SetSubmissionCommentLogic) SetSubmissionComment(in *pb.SetSubmissionCom
 
 	userId, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
-		return nil, xerr.ErrExistInvalidId.Status()
+		return nil, err
 	}
 	submissionId, err := primitive.ObjectIDFromHex(in.SubmissionID)
 	if err != nil {
-		return nil, xerr.ErrExistInvalidId.Status()
+		return nil, err
 	}
 	comment := &model.Comment{
 		UserId:       userId,
@@ -47,16 +46,20 @@ func (l *SetSubmissionCommentLogic) SetSubmissionComment(in *pb.SetSubmissionCom
 	}
 
 	if err = l.svcCtx.CommentModel.Insert(l.ctx, comment); err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 
-	submission := model.Submission{
-		ID:     submissionId,
-		Status: globalKey.Reviewed,
-	}
+	//如果是管理员权限才更新审阅状态
+	userInfo, err := l.svcCtx.UserInfoModel.FindOne(l.ctx, in.UserId)
+	if userInfo.UserType == globalKey.Admin || userInfo.UserType == globalKey.SuperAdmin {
+		submission := model.Submission{
+			ID:     submissionId,
+			Status: globalKey.Reviewed,
+		}
 
-	if _, err = l.svcCtx.SubmissionModel.Update(l.ctx, &submission); err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		if _, err = l.svcCtx.SubmissionModel.Update(l.ctx, &submission); err != nil {
+			return nil, err
+		}
 	}
 
 	return &pb.SetSubmissionCommentResp{

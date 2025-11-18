@@ -7,8 +7,10 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
+	"errors"
+	"github.com/jinzhu/copier"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -37,7 +39,7 @@ func (l *GetSubmissionInfoLogic) GetSubmissionInfo(req *types.GetSubmissionInfoR
 			return nil, err
 		}
 		if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-			return nil, xerr.ErrPermissionDenied
+			return nil, errors.New("permission denied")
 		}
 		userId = req.UserId
 	} else {
@@ -51,8 +53,9 @@ func (l *GetSubmissionInfoLogic) GetSubmissionInfo(req *types.GetSubmissionInfoR
 	if err != nil {
 		return nil, err
 	}
+	var submissioninfos []types.SubmissionInfo
+	copier.Copy(&submissioninfos, &getSubmissionInfoResp.SubmissionInfos)
 	return &types.GetSubmissionInfoResp{
-		SubmissionID: getSubmissionInfoResp.SubmissionID,
-		Urls:         getSubmissionInfoResp.Urls,
+		SubmissionInfos: submissioninfos,
 	}, nil
 }

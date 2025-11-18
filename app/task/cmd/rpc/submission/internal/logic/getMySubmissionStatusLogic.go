@@ -1,9 +1,7 @@
 package logic
 
 import (
-	"MuXiFresh-Be-2.0/app/task/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/submission/internal/svc"
@@ -28,20 +26,23 @@ func NewGetMySubmissionStatusLogic(ctx context.Context, svcCtx *svc.ServiceConte
 
 func (l *GetMySubmissionStatusLogic) GetMySubmissionStatus(in *pb.GetMySubmissionStatusReq) (*pb.GetMySubmissionStatusResp, error) {
 
-	submission, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
-	status := globalKey.Submitted
+	submissions, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
 	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			status = globalKey.NotSubmitted
-		case model.ErrInvalidObjectId:
-			return nil, xerr.ErrExistInvalidId.Status()
-		default:
-			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
-		}
-	} else {
-		if submission.Status == globalKey.Reviewed {
+		// 查询出错，返回错误
+		return nil, err
+	}
+	if len(submissions) == 0 {
+		// 没有任何提交
+		return &pb.GetMySubmissionStatusResp{
+			Status: globalKey.NotSubmitted,
+		}, nil
+	}
+	// 默认状态
+	status := globalKey.Submitted
+	for _, s := range submissions {
+		if s.Status == globalKey.Reviewed {
 			status = globalKey.Reviewed
+			break // 有已批改的就优先返回
 		}
 	}
 	return &pb.GetMySubmissionStatusResp{

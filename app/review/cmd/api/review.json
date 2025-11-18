@@ -146,6 +146,9 @@
         "grader": {
           "type": "string"
         },
+        "gender": {
+          "type": "string"
+        },
         "school": {
           "type": "string"
         },
@@ -161,6 +164,7 @@
         "schedule_id",
         "name",
         "grader",
+        "gender",
         "school",
         "group",
         "status"
