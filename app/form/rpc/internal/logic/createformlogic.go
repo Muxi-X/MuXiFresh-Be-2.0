@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/app/form/rpc/pb"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"fmt"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -28,7 +29,7 @@ func NewCreateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	userId, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
-		return nil, err
+		return nil, xerr.ErrExistInvalidId.Status()
 	}
 	formID, err := l.svcCtx.FormClient.InsertReturnID(l.ctx, &model.EntryForm{
 		UserId:        userId,
@@ -47,7 +48,7 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
 	}
 	return &pb.CreateResp{
 		FormID: fmt.Sprint(formID)[10:34],

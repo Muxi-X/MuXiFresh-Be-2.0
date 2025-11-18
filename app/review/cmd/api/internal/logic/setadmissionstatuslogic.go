@@ -8,8 +8,8 @@ import (
 	externalModel "MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -37,29 +37,36 @@ func (l *SetAdmissionStatusLogic) SetAdmissionStatus(req *types.SetAdmissionStat
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, errors.New("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 
 	sid, err := primitive.ObjectIDFromHex(req.ScheduleID)
 	if err != nil {
-		return nil, err
+		return nil, xerr.ErrExistInvalidId
 	}
 	_, err = l.svcCtx.ScheduleClient.Update(l.ctx, &model.Schedule{
 		ID:              sid,
 		AdmissionStatus: req.NewStatus,
 	})
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR)
 	}
 	//转正 usertype to normal
 	if req.NewStatus == globalKey.Formal {
 		schedule, err := l.svcCtx.ScheduleClient.FindOne(l.ctx, req.ScheduleID)
 		if err != nil {
-			return nil, err
+			switch err {
+			case model.ErrNotFound:
+				return nil, xerr.ErrNotFind
+			case model.ErrInvalidObjectId:
+				return nil, xerr.ErrExistInvalidId
+			default:
+				return nil, xerr.NewErrCode(xerr.DB_ERROR)
+			}
 		}
 		userInfo, err := l.svcCtx.UserInfoModel.FindOne(l.ctx, schedule.UserID.String()[10:34])
 		if err != nil {
-			return nil, err
+			return nil, xerr.NewErrCode(xerr.DB_ERROR)
 		}
 		if userInfo.UserType != globalKey.SuperAdmin && userInfo.UserType != globalKey.Admin {
 			_, err = l.svcCtx.UserInfoModel.Update(l.ctx, &externalModel.UserInfo{
@@ -67,7 +74,7 @@ func (l *SetAdmissionStatusLogic) SetAdmissionStatus(req *types.SetAdmissionStat
 				UserType: globalKey.Normal,
 			})
 			if err != nil {
-				return nil, err
+				return nil, xerr.NewErrCode(xerr.DB_ERROR)
 			}
 		}
 	}

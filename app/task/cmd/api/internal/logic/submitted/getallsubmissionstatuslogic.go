@@ -5,8 +5,8 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
 	"github.com/jinzhu/copier"
 
 	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/svc"
@@ -38,7 +38,7 @@ func (l *GetAllSubmissionStatusLogic) GetAllSubmissionStatus(req *types.GetAllSu
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, errors.New("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 	//get
 	getAllStatusResp, err := l.svcCtx.SubmissionClient.GetAllSubmissionStatus(l.ctx, &submissionclient.GetAllSubmissionStatusReq{

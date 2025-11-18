@@ -1,14 +1,13 @@
 package logic
 
 import (
+	"MuXiFresh-Be-2.0/app/user/cmd/api/internal/svc"
+	"MuXiFresh-Be-2.0/app/user/cmd/api/internal/types"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
-
-	"MuXiFresh-Be-2.0/app/user/cmd/api/internal/svc"
-	"MuXiFresh-Be-2.0/app/user/cmd/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -37,7 +36,7 @@ func (l *SetUserTypeLogic) SetUserType(req *types.SetUserTypeReq) (resp *types.S
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, errors.New("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 
 	setUserTypeResp, err := l.svcCtx.UserClient.SetUserType(l.ctx, &userclient.SetUserTypeReq{

@@ -1,13 +1,12 @@
 package comment
 
 import (
-	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/commentclient"
-	"MuXiFresh-Be-2.0/common/ctxData"
-	"context"
-	"fmt"
-
 	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/types"
+	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/commentclient"
+	"MuXiFresh-Be-2.0/common/ctxData"
+	"MuXiFresh-Be-2.0/common/xerr"
+	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -36,11 +35,14 @@ func (l *DelSubmissionCommentLogic) DelSubmissionComment(req *types.DelSubmissio
 		return nil, err
 	}
 	if !isMyCmtResp.Flag {
-		return nil, fmt.Errorf("no permission to delete the comment")
+		return nil, xerr.ErrPermissionDenied
 	}
 	delCommentResp, err := l.svcCtx.CommentClient.DelSubmissionComment(l.ctx, &commentclient.DelSubmissionCommentReq{
 		CommentID: req.CommentID,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return &types.DelSubmissionCommentResp{
 		Flag: delCommentResp.Flag,
 	}, nil

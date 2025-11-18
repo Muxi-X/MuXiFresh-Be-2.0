@@ -50,9 +50,20 @@ message CheckResp {
   string  ExtraQuestion=10;
 }
 
+message GetApplicantNumberReq{
+    string Group = 1;
+    int64 Year = 2;
+    string Season = 3;
+}
+
+message GetApplicantNumberResp{
+   int64  Number = 1;
+}
+
 service EntryFormClient {
   rpc JudgeUser(ClickReq)returns(ClickResp);
   rpc CreateForm(CreateReq)returns(CreateResp);
   rpc UpdateForm(CreateReq)returns(CreateResp);
   rpc CheckForm(CheckReq)returns(CheckResp);
+  rpc GetApplicantNumber(GetApplicantNumberReq)returns(GetApplicantNumberResp);
 }

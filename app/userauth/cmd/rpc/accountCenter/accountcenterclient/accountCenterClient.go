@@ -15,6 +15,8 @@ import (
 type (
 	CcnuLoginReq     = pb.CcnuLoginReq
 	CcnuLoginResp    = pb.CcnuLoginResp
+	ExistEmailReq    = pb.ExistEmailReq
+	ExistEmailResp   = pb.ExistEmailResp
 	LoginVerifyReq   = pb.LoginVerifyReq
 	LoginVerifyResp  = pb.LoginVerifyResp
 	RegisterDataReq  = pb.RegisterDataReq
@@ -33,6 +35,7 @@ type (
 		CcnuLogin(ctx context.Context, in *CcnuLoginReq, opts ...grpc.CallOption) (*CcnuLoginResp, error)
 		SetStudentID(ctx context.Context, in *SetStudentIDReq, opts ...grpc.CallOption) (*SetStudentIDResp, error)
 		SetEmail(ctx context.Context, in *SetEmailReq, opts ...grpc.CallOption) (*SetEmailResp, error)
+		ExistEmail(ctx context.Context, in *ExistEmailReq, opts ...grpc.CallOption) (*ExistEmailResp, error)
 	}
 
 	defaultAccountCenterClient struct {
@@ -74,4 +77,9 @@ func (m *defaultAccountCenterClient) SetStudentID(ctx context.Context, in *SetSt
 func (m *defaultAccountCenterClient) SetEmail(ctx context.Context, in *SetEmailReq, opts ...grpc.CallOption) (*SetEmailResp, error) {
 	client := pb.NewAccountCenterClientClient(m.cli.Conn())
 	return client.SetEmail(ctx, in, opts...)
+}
+
+func (m *defaultAccountCenterClient) ExistEmail(ctx context.Context, in *ExistEmailReq, opts ...grpc.CallOption) (*ExistEmailResp, error) {
+	client := pb.NewAccountCenterClientClient(m.cli.Conn())
+	return client.ExistEmail(ctx, in, opts...)
 }

@@ -1,6 +1,8 @@
 package logic
 
 import (
+	"MuXiFresh-Be-2.0/app/task/model"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/submission/internal/svc"
@@ -27,7 +29,14 @@ func (l *GetSubmissionInfoLogic) GetSubmissionInfo(in *pb.GetSubmissionInfoReq) 
 
 	submissions, err := l.svcCtx.SubmissionModel.FindByUserIdAndAssignmentID(l.ctx, in.UserId, in.AssignmentID)
 	if err != nil {
-		return nil, err
+		switch err {
+		case model.ErrNotFound:
+			return nil, xerr.ErrNotFind
+		case model.ErrInvalidObjectId:
+			return nil, xerr.ErrExistInvalidId.Status()
+		default:
+			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		}
 	}
 	var submissionInfos []*pb.SubmissionInfo
 	for _, submission := range submissions {

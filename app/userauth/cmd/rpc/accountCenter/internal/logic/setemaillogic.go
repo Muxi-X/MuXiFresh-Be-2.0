@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/internal/svc"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -28,7 +29,7 @@ func (l *SetEmailLogic) SetEmail(in *pb.SetEmailReq) (*pb.SetEmailResp, error) {
 
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
-		return nil, err
+		return nil, xerr.ErrExistInvalidId.Status()
 	}
 	userAuth := &model.UserAuth{
 		Email:      in.Email,
@@ -36,7 +37,7 @@ func (l *SetEmailLogic) SetEmail(in *pb.SetEmailReq) (*pb.SetEmailResp, error) {
 	}
 	_, err = l.svcCtx.UserAuthClient.UpdateByUserId(l.ctx, userAuth)
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
 	}
 	userInfo := &model.UserInfo{
 		ID:    uid,
@@ -44,7 +45,7 @@ func (l *SetEmailLogic) SetEmail(in *pb.SetEmailReq) (*pb.SetEmailResp, error) {
 	}
 	_, err = l.svcCtx.UserInfoClient.Update(l.ctx, userInfo)
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
 	}
 	return &pb.SetEmailResp{
 		Flag: true,

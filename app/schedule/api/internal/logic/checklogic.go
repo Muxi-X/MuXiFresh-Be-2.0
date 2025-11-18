@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/schedule/rpc/scheduleclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/schedule/api/internal/svc"
@@ -32,7 +33,8 @@ func (l *CheckLogic) Check(req *types.CheckReq) (resp *types.CheckResp, err erro
 	if req.ScheduleID == globalKey.Myself {
 		u, err := l.svcCtx.UserInfoClient.FindOne(l.ctx, userid)
 		if err != nil {
-			return nil, err
+			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+
 		}
 		req.ScheduleID = u.ScheduleID.String()[10:34]
 	}

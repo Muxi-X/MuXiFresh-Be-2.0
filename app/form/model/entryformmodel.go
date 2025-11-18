@@ -19,6 +19,7 @@ type (
 		InsertReturnID(ctx context.Context, data *EntryForm) (interface{}, error)
 		FindOneByUserId(ctx context.Context, userId string) (*EntryForm, error)
 		FindByGroup(ctx context.Context, group string, school string, grade string, startDate time.Time, endDate time.Time) ([]*EntryForm, error)
+		CountByGroup(ctx context.Context, group string, startDate time.Time, endDate time.Time) (int64, error)
 	}
 
 	customEntryFormModel struct {
@@ -92,4 +93,18 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 	default:
 		return nil, err
 	}
+}
+
+func (m *customEntryFormModel) CountByGroup(ctx context.Context, group string, startDate time.Time, endDate time.Time) (int64, error) {
+	number, err := m.conn.CountDocuments(ctx, bson.M{
+		"group": group,
+		"createAt": bson.M{
+			"$gte": startDate, // 大于等于起始时间
+			"$lte": endDate,   // 小于等于结束时间
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+	return number, err
 }

@@ -6,8 +6,8 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
 	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -36,7 +36,7 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, errors.New("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 	//秋招
 	startTime := time.Date(req.Year, time.July, 1, 0, 0, 0, 0, time.UTC)
@@ -50,7 +50,7 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 	entryForms, err := l.svcCtx.EntryFormModel.FindByGroup(l.ctx, req.Group, req.School, req.Grade, startTime, endTime)
 
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR)
 	}
 	var rows []types.Row
 	for _, entryForm := range entryForms {
@@ -59,19 +59,24 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 		//录取进度
 		schedule, err := l.svcCtx.ScheduleClient.FindOneByUserId(l.ctx, userId)
 		if err != nil {
-			return nil, err
+			return nil, xerr.NewErrCodeMsg(xerr.DB_ERROR, "failed to find schedule: user_id = "+userId)
 		}
 
 		if req.Status != "" && schedule.AdmissionStatus != req.Status {
 			continue
 		}
+
 		//测验情况
 		userInfo, err := l.svcCtx.UserInfoModel.FindOne(l.ctx, userId)
 		if err != nil {
-			return nil, err
+			return nil, xerr.NewErrCodeMsg(xerr.DB_ERROR, "failed to find userinfo: user_id = "+userId)
 		}
 
 		examStatus := "已提交"
+
+		if userInfo.TestChoice == nil {
+			examStatus = "未提交"
+		}
 
 		rows = append(rows, types.Row{
 			Name:            userInfo.Name,

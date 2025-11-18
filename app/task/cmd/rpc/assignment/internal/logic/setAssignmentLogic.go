@@ -5,6 +5,7 @@ import (
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/assignment/pb"
 	"MuXiFresh-Be-2.0/app/task/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"github.com/jinzhu/copier"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -40,14 +41,14 @@ func (l *SetAssignmentLogic) SetAssignment(in *pb.SetAssignmentReq) (*pb.SetAssi
 		//更新
 		assignment.ID, err = primitive.ObjectIDFromHex(in.AssignmentID)
 		if err != nil {
-			return nil, model.ErrInvalidObjectId
+			return nil, xerr.ErrExistInvalidId.Status()
 		}
 
 		_, err = l.svcCtx.AssignmentModelClient.Update(l.ctx, &assignment)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
 	}
 
 	return &pb.SetAssignmentResp{

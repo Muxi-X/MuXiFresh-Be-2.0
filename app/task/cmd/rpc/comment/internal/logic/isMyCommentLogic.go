@@ -1,6 +1,8 @@
 package logic
 
 import (
+	"MuXiFresh-Be-2.0/app/task/model"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/internal/svc"
@@ -27,7 +29,14 @@ func (l *IsMyCommentLogic) IsMyComment(in *pb.IsMyCommentReq) (*pb.IsMyCommentRe
 
 	comment, err := l.svcCtx.CommentModel.FindOne(l.ctx, in.CommentID)
 	if err != nil {
-		return nil, err
+		switch err {
+		case model.ErrNotFound:
+			return nil, xerr.ErrNotFind.Status()
+		case model.ErrInvalidObjectId:
+			return nil, xerr.ErrExistInvalidId.Status()
+		default:
+			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		}
 	}
 	return &pb.IsMyCommentResp{
 		Flag: comment.UserId.String()[10:34] == in.UserId,

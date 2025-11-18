@@ -2,14 +2,13 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/code"
+	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
+	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/types"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/accountcenterclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
-
-	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
-	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,7 +30,7 @@ func NewSetEmailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetEmail
 func (l *SetEmailLogic) SetEmail(req *types.SetEmailReq) (resp *types.SetEmailResp, err error) {
 
 	if ok := code.VerifyEmailCode(globalKey.SetEmail, req.Email, req.VerifyCode); !ok {
-		return nil, errors.New("verify code failed")
+		return nil, xerr.ErrEmailVerificationFailed
 	}
 	SetEmailResp, err := l.svcCtx.AccountCenterClient.SetEmail(l.ctx, &accountcenterclient.SetEmailReq{
 		Email:  req.Email,

@@ -41,3 +41,8 @@ func (s *EntryFormClientServer) CheckForm(ctx context.Context, in *pb.CheckReq) 
 	l := logic.NewCheckFormLogic(ctx, s.svcCtx)
 	return l.CheckForm(in)
 }
+
+func (s *EntryFormClientServer) GetApplicantNumber(ctx context.Context, in *pb.GetApplicantNumberReq) (*pb.GetApplicantNumberResp, error) {
+	l := logic.NewGetApplicantNumberLogic(ctx, s.svcCtx)
+	return l.GetApplicantNumber(in)
+}

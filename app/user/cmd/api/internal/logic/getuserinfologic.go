@@ -6,8 +6,8 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/pb"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"fmt"
 	"github.com/jinzhu/copier"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -38,17 +38,18 @@ func (l *GetUserInfoLogic) GetUserInfo(req *types.GetUserInfoReq) (resp *types.G
 	}
 
 	if getUserTypeResp.UserType != globalKey.SuperAdmin && getUserTypeResp.UserType != globalKey.Admin {
-		return nil, fmt.Errorf("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 
 	userInfo, err := l.svcCtx.UserClient.GetUserInfo(l.ctx, &pb.GetUserInfoReq{
 		UserId: req.UserId,
 	})
-
 	if err != nil {
 		return nil, err
 	}
+
 	var UserInfoResp types.GetUserInfoResp
 	copier.Copy(&UserInfoResp, userInfo)
+
 	return &UserInfoResp, nil
 }

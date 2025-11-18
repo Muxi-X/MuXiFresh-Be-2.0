@@ -18,6 +18,7 @@ type (
 		FindOneByEmailAndPassword(ctx context.Context, Email string, Password string) (*UserAuth, error)
 		UpdateByEmail(ctx context.Context, data *UserAuth) (*mongo.UpdateResult, error)
 		UpdateByUserId(ctx context.Context, data *UserAuth) (*mongo.UpdateResult, error)
+		FindOneByEmail(ctx context.Context, email string) (*UserAuth, error)
 	}
 
 	customUserAuthModel struct {
@@ -62,4 +63,19 @@ func (m *customUserAuthModel) UpdateByEmail(ctx context.Context, data *UserAuth)
 	res, err := m.conn.UpdateOne(ctx, bson.M{"email": data.Email}, bson.M{"$set": data})
 
 	return res, err
+}
+
+func (m *customUserAuthModel) FindOneByEmail(ctx context.Context, email string) (*UserAuth, error) {
+	var userauth UserAuth
+
+	err := m.conn.FindOne(ctx, &userauth, bson.M{"email": email})
+
+	switch err {
+	case nil:
+		return &userauth, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
 }

@@ -56,6 +56,17 @@ type CheckResp {
 	ExtraQuestion string `json:"extra_question"`
 }
 
+type GetApplicantNumberReq {
+	Authorization string `header:"Authorization"`
+	Group         string `json:"group,options=[Product,Design,Frontend,Backend,Android]"`
+	Year          int64  `json:"year"`
+	Season        string `json:"season,options=[autumn,spring]"`
+}
+
+type GetApplicantNumberResp {
+	Number int64 `json:"number"`
+}
+
 @server(
 	prefix: api/v2
 	jwt: JwtAuth
@@ -78,4 +89,7 @@ service form-api {
 	@handler CheckForm
 	get /form/view(CheckReq)returns(CheckResp)
 
+	@doc"指定组人数"
+	@handler GetApplicantNumber
+	post /form/group/applicant-number (GetApplicantNumberReq)returns(GetApplicantNumberResp)
 }

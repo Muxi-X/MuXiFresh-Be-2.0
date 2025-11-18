@@ -53,6 +53,13 @@ message SetEmailReq {
 message SetEmailResp {
   bool Flag = 1;
 }
+message ExistEmailReq {
+  string  Email = 1;
+}
+
+message ExistEmailResp {
+  bool Exist = 1;
+}
 
 service accountCenterClient {
   rpc Register(RegisterDataReq) returns(RegisterDataResp);
@@ -61,4 +68,5 @@ service accountCenterClient {
   rpc ccnuLogin(ccnuLoginReq) returns(ccnuLoginResp);
   rpc SetStudentID(SetStudentIDReq) returns(SetStudentIDResp);
   rpc SetEmail(SetEmailReq) returns(SetEmailResp);
+  rpc ExistEmail(ExistEmailReq) returns(ExistEmailResp);
 }

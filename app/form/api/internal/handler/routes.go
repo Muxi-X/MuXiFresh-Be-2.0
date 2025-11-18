@@ -32,6 +32,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/form/view",
 				Handler: CheckFormHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/form/group/applicant-number",
+				Handler: GetApplicantNumberHandler(serverCtx),
+			},
 		},
 		rest.WithJwt(serverCtx.Config.JwtAuth.AccessSecret),
 		rest.WithPrefix("/api/v2"),

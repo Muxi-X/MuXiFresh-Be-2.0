@@ -4,8 +4,8 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
-	"errors"
 	"github.com/jinzhu/copier"
 
 	"MuXiFresh-Be-2.0/app/user/cmd/api/internal/svc"
@@ -38,7 +38,7 @@ func (l *GetAdminListLogic) GetAdminList(req *types.GetAdminListReq) (resp *type
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, errors.New("permission denied")
+		return nil, xerr.ErrPermissionDenied
 	}
 
 	getAdminListResp, err := l.svcCtx.UserClient.GetAdminList(l.ctx, &userclient.GetAdminListReq{

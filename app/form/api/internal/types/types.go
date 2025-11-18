@@ -47,3 +47,14 @@ type CheckResp struct {
 	SelfIntro     string `json:"self_intro"`
 	ExtraQuestion string `json:"extra_question"`
 }
+
+type GetApplicantNumberReq struct {
+	Authorization string `header:"Authorization"`
+	Group         string `json:"group,options=[Product,Design,Frontend,Backend,Android]"`
+	Year          int64  `json:"year"`
+	Season        string `json:"season,options=[autumn,spring]"`
+}
+
+type GetApplicantNumberResp struct {
+	Number int64 `json:"number"`
+}

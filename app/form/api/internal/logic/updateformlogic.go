@@ -2,7 +2,10 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/form/rpc/entryformclient"
+	schedulemodel "MuXiFresh-Be-2.0/app/schedule/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
+	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/form/api/internal/svc"
@@ -27,9 +30,24 @@ func NewUpdateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Update
 
 func (l *UpdateFormLogic) UpdateForm(req *types.CreateReq) (resp *types.CreateResp, err error) {
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
+	//查录取状态，转正后不修改group
+	schedule, err := l.svcCtx.ScheduleModel.FindOneByUserId(l.ctx, userId)
+	if err != nil {
+		switch err {
+		case schedulemodel.ErrNotFound:
+			return nil, xerr.ErrNotFind
+		case schedulemodel.ErrInvalidObjectId:
+			return nil, xerr.ErrExistInvalidId
+		default:
+			return nil, xerr.NewErrCode(xerr.DB_ERROR)
+		}
+	}
+	if schedule.AdmissionStatus == globalKey.Formal {
+		req.Group = globalKey.NULL
+	}
 	_, err = l.svcCtx.FormClient.UpdateForm(l.ctx, &entryformclient.CreateReq{
-		FormId:        req.FormId,
 		UserId:        userId,
+		FormId:        req.FormId,
 		Avatar:        req.Avatar,
 		Major:         req.Major,
 		Grade:         req.Grade,
@@ -41,6 +59,7 @@ func (l *UpdateFormLogic) UpdateForm(req *types.CreateReq) (resp *types.CreateRe
 		SelfIntro:     req.SelfIntro,
 		ExtraQuestion: req.ExtraQuestion,
 	})
+
 	if err != nil {
 		return nil, err
 	}

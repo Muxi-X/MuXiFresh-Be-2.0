@@ -51,3 +51,8 @@ func (s *AccountCenterClientServer) SetEmail(ctx context.Context, in *pb.SetEmai
 	l := logic.NewSetEmailLogic(ctx, s.svcCtx)
 	return l.SetEmail(in)
 }
+
+func (s *AccountCenterClientServer) ExistEmail(ctx context.Context, in *pb.ExistEmailReq) (*pb.ExistEmailResp, error) {
+	l := logic.NewExistEmailLogic(ctx, s.svcCtx)
+	return l.ExistEmail(in)
+}

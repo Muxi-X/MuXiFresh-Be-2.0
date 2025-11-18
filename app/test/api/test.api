@@ -26,6 +26,7 @@ type TestInfoReq {
 	UserID        string `form:"user_id"`
 }
 type TestInfoResp {
+	UserId      string       `json:"user_id"`
 	Name        string       `json:"name"`
 	Gender      string       `json:"gender"`
 	Major       string       `json:"major"`

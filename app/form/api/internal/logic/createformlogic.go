@@ -5,6 +5,7 @@ import (
 	schedulemodel "MuXiFresh-Be-2.0/app/schedule/model"
 	externalModel "MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
+	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
@@ -31,6 +32,28 @@ func NewCreateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 
 func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateResp, err error) {
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
+	if req.FormId != "" {
+		_, err = l.svcCtx.FormClient.UpdateForm(l.ctx, &entryformclient.CreateReq{
+			FormId:        req.FormId,
+			UserId:        userId,
+			Avatar:        req.Avatar,
+			Major:         req.Major,
+			Grade:         req.Grade,
+			Gender:        req.Gender,
+			Phone:         req.Phone,
+			Group:         req.Group,
+			Reason:        req.Reason,
+			Knowledge:     req.Knowledge,
+			SelfIntro:     req.SelfIntro,
+			ExtraQuestion: req.ExtraQuestion,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &types.CreateResp{
+			Flag: true,
+		}, nil
+	}
 	CtResp, err := l.svcCtx.FormClient.CreateForm(l.ctx, &entryformclient.CreateReq{
 		UserId:        userId,
 		Avatar:        req.Avatar,
@@ -49,11 +72,11 @@ func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateRe
 	}
 	u, err := primitive.ObjectIDFromHex(userId)
 	if err != nil {
-		return nil, err
+		return nil, xerr.ErrExistInvalidId
 	}
 	f, err := primitive.ObjectIDFromHex(CtResp.FormID)
 	if err != nil {
-		return nil, err
+		return nil, xerr.ErrExistInvalidId
 	}
 
 	_, err = l.svcCtx.UserInfoModelClient.Update(l.ctx, &externalModel.UserInfo{
@@ -61,16 +84,24 @@ func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateRe
 		EntryFormID: f,
 		UpdateAt:    time.Now(),
 	})
+
 	if err != nil {
-		return nil, err
+		switch err {
+		case externalModel.ErrNotFound:
+			return nil, xerr.ErrNotFind
+		default:
+			return nil, xerr.NewErrCode(xerr.DB_ERROR)
+		}
 	}
+
 	_, err = l.svcCtx.ScheduleModel.UpdateByUserId(l.ctx, &schedulemodel.Schedule{
 		UserID:          u,
 		EntryFormStatus: "已提交",
 		AdmissionStatus: "已报名",
 	})
+
 	if err != nil {
-		return nil, err
+		return nil, xerr.NewErrCode(xerr.DB_ERROR)
 	}
 	return &types.CreateResp{
 		Flag: true,
