@@ -3,7 +3,6 @@ package logic
 import (
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/assignment/internal/svc"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/assignment/pb"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -26,7 +25,7 @@ func NewGetAssignmentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 func (l *GetAssignmentListLogic) GetAssignmentList(in *pb.GetAssignmentListReq) (*pb.GetAssignmentListResp, error) {
 	assignments, err := l.svcCtx.AssignmentModelClient.FindByGroup(l.ctx, in.Group)
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	var titles []*pb.Title
 	for _, assignment := range assignments {

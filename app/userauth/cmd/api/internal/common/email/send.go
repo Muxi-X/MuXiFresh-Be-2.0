@@ -6,36 +6,27 @@ import (
 	"MuXiFresh-Be-2.0/common/convert"
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"MuXiFresh-Be-2.0/common/tool"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/jordan-wright/email"
-	"log"
 	"net/smtp"
 	"net/textproto"
 )
 
-type SenderConf struct {
+type EmailInfo struct {
 	Host     string
 	Port     string
 	UserName string
 	Password string
 }
 
-var senderConf SenderConf
+var eInfo EmailInfo
 
 func Load(c config.Config) {
-	copier.Copy(&senderConf, c.EmailConf)
+	copier.Copy(&eInfo, c.EmailConf)
 }
 
-type Msg struct {
-	Email string `json:"email"`
-	Type  string `json:"type"`
-}
-
-func (message *Msg) send() error {
-	Email := message.Email
-	Type := message.Type
+func Send(Email string, Type string) error {
 	if Type != globalKey.Register && Type != globalKey.SetPassword && Type != globalKey.SetEmail {
 		return fmt.Errorf("invalid email type")
 	}
@@ -46,40 +37,16 @@ func (message *Msg) send() error {
 	//发送
 	e := &email.Email{
 		To:      []string{Email},
-		From:    senderConf.UserName,
+		From:    eInfo.UserName,
 		Subject: subject,
 		HTML:    []byte(html),
 		Headers: textproto.MIMEHeader{},
 	}
-	err := e.Send(senderConf.Host+":"+senderConf.Port, smtp.PlainAuth("", senderConf.UserName, senderConf.Password, senderConf.Host))
+	err := e.Send(eInfo.Host+":"+eInfo.Port, smtp.PlainAuth("", eInfo.UserName, eInfo.Password, eInfo.Host))
 	if err != nil {
 		return err
 	}
 	//存到redis
 	err = code.SetEmailCode(Type, Email, randCode)
 	return err
-}
-
-var queue chan *Msg
-
-func Push(msg *Msg) error {
-	select {
-	case queue <- msg:
-		return nil
-	default:
-		return xerr.NewErrMsg("邮件发送失败")
-	}
-}
-
-func Sender() {
-	queue = make(chan *Msg, 100)
-	var msg *Msg
-	var err error
-	for {
-		msg = <-queue
-		err = msg.send()
-		if err != nil {
-			log.Print("emailSender: send failed")
-		}
-	}
 }

@@ -2,8 +2,9 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/model"
-	"MuXiFresh-Be-2.0/common/xerr"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 
@@ -32,20 +33,16 @@ func (l *SetStudentIDLogic) SetStudentID(in *pb.SetStudentIDReq) (*pb.SetStudent
 	//是否绑定
 	_, err := l.svcCtx.UserInfoClient.FindByStudentID(l.ctx, in.StudentID)
 	if err == nil {
-		return nil, xerr.ErrStudentIdHasBeenBind.Status()
+		return nil, errors.New("the student_id  already bind")
 	}
 	//一站式登录
-	//if !tool.CCNULogin(in.StudentID, in.Password) {
-	//	return nil, xerr.ErrStudentIdOrPasswordIsWrong.Status()
-	//}
-	ok, err := l.svcCtx.CCNUSvc.Login(l.ctx, in.GetStudentID(), in.GetPassword())
-	if err != nil || !ok {
-		return nil, xerr.ErrStudentIdOrPasswordIsWrong.Status()
+	if !tool.CCNULogin(in.StudentID, in.Password) {
+		return nil, errors.New("student_id or password is wrong")
 	}
 	//存userinfo
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
-		return nil, xerr.ErrExistInvalidId.Status()
+		return nil, err
 	}
 	_, err = l.svcCtx.UserInfoClient.Update(l.ctx, &model.UserInfo{
 		ID:        uid,
@@ -53,7 +50,7 @@ func (l *SetStudentIDLogic) SetStudentID(in *pb.SetStudentIDReq) (*pb.SetStudent
 		UpdateAt:  time.Now(),
 	})
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	return &pb.SetStudentIDResp{
 		Flag: true,

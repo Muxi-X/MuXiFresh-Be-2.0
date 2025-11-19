@@ -5,7 +5,6 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -33,17 +32,17 @@ func (l *GetAdminListLogic) GetAdminList(in *pb.GetAdminListReq) (*pb.GetAdminLi
 
 	if userType == globalKey.SuperAdmin || userType == globalKey.Admin {
 		userInfos, err = l.svcCtx.UserInfoModel.FindByUserType(l.ctx, in.UserType)
-		if err != nil && err != model.ErrNotFound {
-			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		userInfos, err = l.svcCtx.UserInfoModel.FindByUserType(l.ctx, globalKey.Freshman)
-		if err != nil && err != model.ErrNotFound {
-			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		if err != nil {
+			return nil, err
 		}
 		tmpInfos, err := l.svcCtx.UserInfoModel.FindByUserType(l.ctx, globalKey.Normal)
-		if err != nil && err != model.ErrNotFound {
-			return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		if err != nil {
+			return nil, err
 		}
 		userInfos = append(userInfos, tmpInfos...)
 	}
@@ -52,7 +51,7 @@ func (l *GetAdminListLogic) GetAdminList(in *pb.GetAdminListReq) (*pb.GetAdminLi
 	for _, userInfo := range userInfos {
 		list = append(list, &pb.One{
 			UserId:   userInfo.ID.String()[10:34],
-			Nickname: userInfo.Nickname,
+			Nickname: userInfo.NickName,
 			Avatar:   userInfo.Avatar,
 			Name:     userInfo.Name,
 			Email:    userInfo.Email,

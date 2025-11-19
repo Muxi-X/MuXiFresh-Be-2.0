@@ -4,7 +4,6 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"MuXiFresh-Be-2.0/common/tool"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"time"
 
@@ -30,17 +29,16 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 
 func (l *RegisterLogic) Register(in *pb.RegisterDataReq) (*pb.RegisterDataResp, error) {
 	userInfo := &model.UserInfo{
-		Avatar:     l.svcCtx.Config.DefaultUserInfo.Avatar,
-		Nickname:   l.svcCtx.Config.DefaultUserInfo.NickName + "_" + tool.RandStringBytes(6),
-		Email:      in.Email,
-		TestResult: &model.ExamResult{},
-		StudentID:  globalKey.NULL,
-		UserType:   globalKey.Freshman,
-		UpdateAt:   time.Now(),
-		CreateAt:   time.Now(),
+		Avatar:    l.svcCtx.Config.DefaultUserInfo.Avatar,
+		NickName:  l.svcCtx.Config.DefaultUserInfo.NickName + "_" + tool.RandStringBytes(6),
+		Email:     in.Email,
+		StudentID: globalKey.NULL,
+		UserType:  globalKey.Freshman,
+		UpdateAt:  time.Now(),
+		CreateAt:  time.Now(),
 	}
 	if err := l.svcCtx.UserInfoClient.Insert(l.ctx, userInfo); err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	if err := l.svcCtx.UserAuthClient.Insert(l.ctx, &model.UserAuth{
 		Email:      in.Email,
@@ -49,7 +47,7 @@ func (l *RegisterLogic) Register(in *pb.RegisterDataReq) (*pb.RegisterDataResp, 
 		UpdateAt:   time.Now(),
 		CreateAt:   time.Now(),
 	}); err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	return &pb.RegisterDataResp{
 		ID: userInfo.ID.String()[10:34],

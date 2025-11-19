@@ -2,7 +2,6 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/model"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/internal/svc"
@@ -32,7 +31,7 @@ func (l *SetPasswordLogic) SetPassword(in *pb.SetPasswordReq) (*pb.SetPasswordRe
 		Password: in.Password,
 	})
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	return &pb.SetPasswordResp{
 		Flag: true,

@@ -2,7 +2,6 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/code"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
@@ -28,7 +27,7 @@ func NewGetCaptchaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCap
 func (l *GetCaptchaLogic) GetCaptcha() (resp *types.GetCaptchaResp, err error) {
 	id, base64, err := code.NewCaptcha().GenerateCaptcha()
 	if err != nil {
-		return nil, xerr.ErrGenerateCaptcha
+		return nil, err
 	}
 	return &types.GetCaptchaResp{
 		ImageBase64: base64,

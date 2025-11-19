@@ -1,9 +1,7 @@
 package logic
 
 import (
-	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/form/api/internal/svc"
@@ -30,14 +28,7 @@ func (l *JudgeUserLogic) JudgeUser(req *types.ClickReq) (resp *types.ClickResp, 
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
 	userInfo, err := l.svcCtx.UserInfoModelClient.FindOne(l.ctx, userId)
 	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			return nil, xerr.ErrNotFind
-		case model.ErrInvalidObjectId:
-			return nil, xerr.ErrExistInvalidId
-		default:
-			return nil, xerr.NewErrCode(xerr.DB_ERROR)
-		}
+		return nil, err
 	}
 	status := "已交表"
 	if userInfo.EntryFormID.IsZero() {

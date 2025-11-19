@@ -3,7 +3,6 @@ package logic
 import (
 	"MuXiFresh-Be-2.0/app/schedule/model"
 	userauthModel "MuXiFresh-Be-2.0/app/userauth/model"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
@@ -31,7 +30,7 @@ func NewCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateLogi
 func (l *CreateLogic) Create(in *pb.CreateReq) (*pb.CreateResp, error) {
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
-		return nil, xerr.ErrExistInvalidId.Status()
+		return nil, err
 	}
 	scheduleID, err := l.svcCtx.ScheduleClient.InsertGetID(l.ctx, &model.Schedule{
 		UserID:          uid,
@@ -41,18 +40,18 @@ func (l *CreateLogic) Create(in *pb.CreateReq) (*pb.CreateResp, error) {
 		CreateAt:        time.Now(),
 	})
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	sid, err := primitive.ObjectIDFromHex(scheduleID[10:34])
 	if err != nil {
-		return nil, xerr.ErrExistInvalidId.Status()
+		return nil, err
 	}
 	_, err = l.svcCtx.UserInfoClient.Update(l.ctx, &userauthModel.UserInfo{
 		ID:         uid,
 		ScheduleID: sid,
 	})
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	return &pb.CreateResp{
 		Flag: true,

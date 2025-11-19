@@ -4,8 +4,9 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/internal/svc"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
+	"fmt"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -31,12 +32,11 @@ func (l *SetUserTypeLogic) SetUserType(in *pb.SetUserTypeReq) (*pb.SetUserTypeRe
 	})
 
 	if update.MatchedCount == 0 {
-		return nil, xerr.ErrEmailHasNotBeenUsed.Status()
+		return nil, fmt.Errorf("email is valid")
 	}
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
-
 	return &pb.SetUserTypeResp{
 		Flag: true,
 	}, nil

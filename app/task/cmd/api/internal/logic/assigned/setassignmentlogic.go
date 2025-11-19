@@ -1,14 +1,15 @@
 package assigned
 
 import (
-	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/svc"
-	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/types"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/assignment/assignmentclient"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
+	"errors"
+
+	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/svc"
+	"MuXiFresh-Be-2.0/app/task/cmd/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -37,7 +38,7 @@ func (l *SetAssignmentLogic) SetAssignment(req *types.SetAssignmentReq) (resp *t
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-		return nil, xerr.ErrPermissionDenied
+		return nil, errors.New("permission denied")
 	}
 	//布置
 	setAssignmentResp, err := l.svcCtx.AssignmentClient.SetAssignment(l.ctx, &assignmentclient.SetAssignmentReq{

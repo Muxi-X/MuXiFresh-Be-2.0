@@ -6,8 +6,8 @@ import (
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"MuXiFresh-Be-2.0/common/tool"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
+	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"time"
 
@@ -34,7 +34,7 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
 	//verify code
 	if ok := code.VerifyEmailCode(globalKey.Register, req.Email, req.VerifyCode); !ok {
-		return nil, xerr.ErrEmailVerificationFailed
+		return nil, fmt.Errorf("verify code failed")
 	}
 
 	//写入数据库
@@ -48,7 +48,7 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 	//gen token
 	tokenStr, err := l.getJwtToken(l.svcCtx.Config.JwtAuth.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuth.AccessExpire, registerDataResp.ID)
 	if err != nil {
-		return nil, xerr.ErrGenerateToken
+		return nil, err
 	}
 
 	return &types.RegisterResp{

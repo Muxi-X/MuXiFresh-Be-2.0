@@ -4,7 +4,6 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/accountcenterclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/tool"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 	"github.com/golang-jwt/jwt/v4"
 	"time"
@@ -41,7 +40,7 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 
 	token, err := l.getJwtToken(l.svcCtx.Config.JwtAuth.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuth.AccessExpire, loginResp.ID)
 	if err != nil {
-		return nil, xerr.ErrGenerateToken
+		return nil, err
 	}
 
 	return &types.LoginResp{Token: token}, nil

@@ -3,7 +3,6 @@ package logic
 import (
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/internal/svc"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/pb"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -27,7 +26,7 @@ func (l *DelSubmissionCommentLogic) DelSubmissionComment(in *pb.DelSubmissionCom
 
 	_, err := l.svcCtx.CommentModel.Delete(l.ctx, in.CommentID)
 	if err != nil {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR).Status()
+		return nil, err
 	}
 	return &pb.DelSubmissionCommentResp{
 		Flag: true,

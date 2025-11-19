@@ -21,7 +21,6 @@ type TestInfoReq struct {
 }
 
 type TestInfoResp struct {
-	UserId      string       `json:"user_id"`
 	Name        string       `json:"name"`
 	Gender      string       `json:"gender"`
 	Major       string       `json:"major"`

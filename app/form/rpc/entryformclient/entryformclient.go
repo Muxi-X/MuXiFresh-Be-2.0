@@ -13,21 +13,18 @@ import (
 )
 
 type (
-	CheckReq               = pb.CheckReq
-	CheckResp              = pb.CheckResp
-	ClickReq               = pb.ClickReq
-	ClickResp              = pb.ClickResp
-	CreateReq              = pb.CreateReq
-	CreateResp             = pb.CreateResp
-	GetApplicantNumberReq  = pb.GetApplicantNumberReq
-	GetApplicantNumberResp = pb.GetApplicantNumberResp
+	CheckReq   = pb.CheckReq
+	CheckResp  = pb.CheckResp
+	ClickReq   = pb.ClickReq
+	ClickResp  = pb.ClickResp
+	CreateReq  = pb.CreateReq
+	CreateResp = pb.CreateResp
 
 	EntryFormClient interface {
 		JudgeUser(ctx context.Context, in *ClickReq, opts ...grpc.CallOption) (*ClickResp, error)
 		CreateForm(ctx context.Context, in *CreateReq, opts ...grpc.CallOption) (*CreateResp, error)
 		UpdateForm(ctx context.Context, in *CreateReq, opts ...grpc.CallOption) (*CreateResp, error)
 		CheckForm(ctx context.Context, in *CheckReq, opts ...grpc.CallOption) (*CheckResp, error)
-		GetApplicantNumber(ctx context.Context, in *GetApplicantNumberReq, opts ...grpc.CallOption) (*GetApplicantNumberResp, error)
 	}
 
 	defaultEntryFormClient struct {
@@ -59,9 +56,4 @@ func (m *defaultEntryFormClient) UpdateForm(ctx context.Context, in *CreateReq, 
 func (m *defaultEntryFormClient) CheckForm(ctx context.Context, in *CheckReq, opts ...grpc.CallOption) (*CheckResp, error) {
 	client := pb.NewEntryFormClientClient(m.cli.Conn())
 	return client.CheckForm(ctx, in, opts...)
-}
-
-func (m *defaultEntryFormClient) GetApplicantNumber(ctx context.Context, in *GetApplicantNumberReq, opts ...grpc.CallOption) (*GetApplicantNumberResp, error) {
-	client := pb.NewEntryFormClientClient(m.cli.Conn())
-	return client.GetApplicantNumber(ctx, in, opts...)
 }

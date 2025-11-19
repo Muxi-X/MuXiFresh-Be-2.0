@@ -2,10 +2,8 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/form/rpc/entryformclient"
-	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/form/api/internal/svc"
@@ -34,14 +32,7 @@ func (l *CheckFormLogic) CheckForm(req *types.CheckReq) (resp *types.CheckResp, 
 		userid := ctxData.GetUserIdFromCtx(l.ctx)
 		userInfo, err := l.svcCtx.UserInfoModelClient.FindOne(l.ctx, userid)
 		if err != nil {
-			switch err {
-			case model.ErrNotFound:
-				return nil, xerr.ErrNotFind
-			case model.ErrInvalidObjectId:
-				return nil, xerr.ErrExistInvalidId
-			default:
-				return nil, xerr.NewErrCode(xerr.DB_ERROR)
-			}
+			return nil, err
 		}
 		req.EntryFormID = userInfo.EntryFormID.String()[10:34]
 	}

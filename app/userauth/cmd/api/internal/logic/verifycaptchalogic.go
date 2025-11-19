@@ -2,9 +2,11 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/code"
+	"context"
+	"fmt"
+
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/types"
-	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,11 +27,10 @@ func NewVerifyCaptchaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ver
 
 func (l *VerifyCaptchaLogic) VerifyCaptcha(req *types.VerifyCaptchaReq) (resp *types.VerifyCaptchaResp, err error) {
 	match := code.NewCaptcha().VerifyCaptcha(req.ImageID, req.VerifyCode)
-	flag := false
-	if match {
-		flag = true
+	if !match {
+		return nil, fmt.Errorf("do not match")
 	}
 	return &types.VerifyCaptchaResp{
-		Flag: flag,
+		Flag: true,
 	}, nil
 }

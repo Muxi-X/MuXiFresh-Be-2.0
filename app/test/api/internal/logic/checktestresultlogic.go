@@ -1,15 +1,14 @@
 package logic
 
 import (
-	formmodel "MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/test/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/test/api/internal/types"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
-	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
-	"MuXiFresh-Be-2.0/common/xerr"
 	"context"
+	"errors"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -39,27 +38,21 @@ func (l *CheckTestResultLogic) CheckTestResult(req *types.TestInfoReq) (resp *ty
 			return nil, err
 		}
 		if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
-			return nil, xerr.ErrPermissionDenied
+			return nil, errors.New("permission denied")
 		}
 		uid = req.UserID
 	}
 
 	userInfo, err := l.svcCtx.UserInfoClient.FindOne(l.ctx, uid)
 	if err != nil {
-		if err == model.ErrNotFound {
-			return nil, xerr.ErrNotFind
-		}
-		return nil, xerr.NewErrCode(xerr.DB_ERROR)
+		return nil, err
 	}
 
 	formid := userInfo.EntryFormID
 
 	form, err := l.svcCtx.FormClient.FindOne(l.ctx, formid.String()[10:34])
-	if err != nil && err != formmodel.ErrNotFound {
-		return nil, xerr.NewErrCode(xerr.DB_ERROR)
-	}
-	if form == nil {
-		form = new(formmodel.EntryForm)
+	if err != nil {
+		return nil, err
 	}
 	typesChoice := make([]types.ChoiceItem, len(userInfo.TestChoice))
 	for i, item := range userInfo.TestChoice {
@@ -67,7 +60,6 @@ func (l *CheckTestResultLogic) CheckTestResult(req *types.TestInfoReq) (resp *ty
 	}
 
 	return &types.TestInfoResp{
-		UserId:      userInfo.ID.String()[10:34],
 		Name:        userInfo.Name,
 		Gender:      form.Gender,
 		Major:       form.Major,

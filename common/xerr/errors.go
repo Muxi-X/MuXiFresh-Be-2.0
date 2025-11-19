@@ -2,8 +2,6 @@ package xerr
 
 import (
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 /**
@@ -27,10 +25,6 @@ func (e *CodeError) GetErrMsg() string {
 
 func (e *CodeError) Error() string {
 	return fmt.Sprintf("ErrCode:%d，ErrMsg:%s", e.errCode, e.errMsg)
-}
-
-func (e *CodeError) Status() error {
-	return status.Error(codes.Code(e.errCode), e.errMsg)
 }
 
 func NewErrCodeMsg(errCode uint32, errMsg string) *CodeError {

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package intro;
+option go_package="./pb";
+
+//返回某组文案
+message GroupIntroReq {
+  string GroupName = 1;
+}
+message GroupIntroResp {
+  string Intro = 1;
+}
+
+//返回招募信息
+message RecruitInfoReq{
+  string URL = 1;
+}
+message RecruitInfoResp{
+  string URL = 1;
+}
+
+service IntroClient {
+  rpc GetGroupIntro(GroupIntroReq) returns(GroupIntroResp);
+  rpc GetRecruitInfo(RecruitInfoReq) returns(RecruitInfoResp);
+}

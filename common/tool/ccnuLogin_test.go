@@ -13,7 +13,7 @@ import (
 func TestCCNULogin(t *testing.T) {
 	username := "xxx"
 	password := "xxx"
-	resp, _ := soup.Get("https://account.ccnu.edu.cn/cas/login/cas/login?service=http%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal")
+	resp, _ := soup.Get("https://account.ccnu.edu.cn/cas/login?service=http%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal")
 	doc := soup.HTMLParse(resp)
 	links1 := doc.Find("body", "id", "cas").FindAll("script")
 	js := links1[2].Attrs()["src"][26:]
@@ -27,14 +27,14 @@ func TestCCNULogin(t *testing.T) {
 		Timeout: 5 * time.Second,
 	}
 
-	url := fmt.Sprintf("https://account.ccnu.edu.cn/cas/login/cas/login;jsessionid=%v?service=http", js) + "%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal"
+	url := fmt.Sprintf("https://account.ccnu.edu.cn/cas/login;jsessionid=%v?service=http", js) + "%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal"
 	text := fmt.Sprintf("username=%v&password=%v&lt=%v&execution=e1s1&_eventId=submit&submit=", username, password, st) + "%E7%99%BB%E5%BD%95"
 	body := strings.NewReader(text)
 	req, _ := http.NewRequest("POST", url, body)
 	req.Header.Set("Cookie", "JSESSIONID="+js)
 	req.Header.Set("Host", "account.ccnu.edu.cn")
 	req.Header.Set("Origin", "https://account.ccnu.edu.cn")
-	req.Header.Set("Referer", "https://account.ccnu.edu.cn/cas/login/cas/login?service=http%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal")
+	req.Header.Set("Referer", "https://account.ccnu.edu.cn/cas/login?service=http%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, _ := client.Do(req)
 	fmt.Println(len(res.Cookies()))

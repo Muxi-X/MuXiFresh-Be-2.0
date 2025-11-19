@@ -72,51 +72,6 @@
         ]
       }
     },
-    "api/v2/form/group/applicant-number": {
-      "get": {
-        "summary": "指定组人数",
-        "operationId": "GetApplicantNumber",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/GetApplicantNumberResp"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "query",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "group",
-            "in": "query",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "year",
-            "in": "query",
-            "required": true,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "season",
-            "in": "query",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "requestBody": {},
-        "tags": [
-          "form-api"
-        ]
-      }
-    },
     "api/v2/form/judge": {
       "get": {
         "summary": "判断身份",
@@ -131,7 +86,7 @@
         },
         "parameters": [
           {
-            "name": "Authorization",
+            "name": "token",
             "in": "query",
             "required": true,
             "type": "string"
@@ -157,7 +112,7 @@
         },
         "parameters": [
           {
-            "name": "Authorization",
+            "name": "token",
             "in": "query",
             "required": true,
             "type": "string"
@@ -189,17 +144,23 @@
       },
       "title": "CheckReq",
       "required": [
-        "Authorization",
+        "token",
         "entry_form_id"
       ]
     },
     "CheckResp": {
       "type": "object",
       "properties": {
-        "form_id": {
+        "avatar": {
           "type": "string"
         },
-        "avatar": {
+        "name": {
+          "type": "string"
+        },
+        "stu_number": {
+          "type": "string"
+        },
+        "school": {
           "type": "string"
         },
         "major": {
@@ -209,6 +170,12 @@
           "type": "string"
         },
         "gender": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "qq": {
           "type": "string"
         },
         "phone": {
@@ -232,11 +199,15 @@
       },
       "title": "CheckResp",
       "required": [
-        "form_id",
         "avatar",
+        "name",
+        "stu_number",
+        "school",
         "major",
         "grade",
         "gender",
+        "email",
+        "qq",
         "phone",
         "group",
         "reason",
@@ -254,7 +225,7 @@
       },
       "title": "ClickReq",
       "required": [
-        "Authorization"
+        "token"
       ]
     },
     "ClickResp": {
@@ -282,7 +253,19 @@
         "form_id": {
           "type": "string"
         },
+        "user_id": {
+          "type": "string"
+        },
         "avatar": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "stu_number": {
+          "type": "string"
+        },
+        "school": {
           "type": "string"
         },
         "major": {
@@ -292,6 +275,12 @@
           "type": "string"
         },
         "gender": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "qq": {
           "type": "string"
         },
         "phone": {
@@ -315,11 +304,17 @@
       },
       "title": "CreateReq",
       "required": [
-        "Authorization",
+        "token",
+        "user_id",
         "avatar",
+        "name",
+        "stu_number",
+        "school",
         "major",
         "grade",
         "gender",
+        "email",
+        "qq",
         "phone",
         "group",
         "reason",
@@ -339,44 +334,6 @@
       "title": "CreateResp",
       "required": [
         "flag"
-      ]
-    },
-    "GetApplicantNumberReq": {
-      "type": "object",
-      "properties": {
-        "Authorization": {
-          "type": "string"
-        },
-        "group": {
-          "type": "string"
-        },
-        "year": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "season": {
-          "type": "string"
-        }
-      },
-      "title": "GetApplicantNumberReq",
-      "required": [
-        "Authorization",
-        "group",
-        "year",
-        "season"
-      ]
-    },
-    "GetApplicantNumberResp": {
-      "type": "object",
-      "properties": {
-        "number": {
-          "type": "integer",
-          "format": "int64"
-        }
-      },
-      "title": "GetApplicantNumberResp",
-      "required": [
-        "number"
       ]
     }
   },
