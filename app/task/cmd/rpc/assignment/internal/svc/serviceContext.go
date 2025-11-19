@@ -13,6 +13,6 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:                c,
-		AssignmentModelClient: model.NewAssignmentModel(c.MongoConf.URL, c.MongoConf.DB, "assignment.yaml"),
+		AssignmentModelClient: model.NewAssignmentModel(c.MongoConf.URL, c.MongoConf.DB, "assignment"),
 	}
 }

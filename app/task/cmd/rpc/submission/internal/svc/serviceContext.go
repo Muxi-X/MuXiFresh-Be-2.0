@@ -21,6 +21,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		SubmissionModel: model.NewSubmissionModel(c.MongoConf.URL, c.MongoConf.DB, "submission"),
 		EntryFormModel:  externalModel.NewEntryFormModel(c.MongoConf.URL, c.MongoConf.DB, "entry_form"),
 		UserInfoModel:   userauthModel.NewUserInfoModel(c.MongoConf.URL, c.MongoConf.DB, "userinfo"),
-		AssignmentModel: model.NewAssignmentModel(c.MongoConf.URL, c.MongoConf.DB, "assignment.yaml"),
+		AssignmentModel: model.NewAssignmentModel(c.MongoConf.URL, c.MongoConf.DB, "assignment"),
 	}
 }
