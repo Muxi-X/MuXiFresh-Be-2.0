@@ -2,9 +2,11 @@ package model
 
 import (
 	"context"
+
 	"github.com/zeromicro/go-zero/core/stores/mon"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -16,7 +18,7 @@ type (
 	SubmissionModel interface {
 		submissionModel
 		FindByUserIdAndAssignmentID(ctx context.Context, userId, assignmentID string) ([]*Submission, error)
-		FindByAssignmentID(ctx context.Context, assignmentID string) ([]*Submission, error)
+		FindByAssignmentID(ctx context.Context, assignmentID string) ([]*SubmissionStats, error)
 		CountByUserAndAssignment(ctx context.Context, userId, assignmentId string) (int64, error)
 	}
 
@@ -54,16 +56,25 @@ func (m *customSubmissionModel) FindByUserIdAndAssignmentID(ctx context.Context,
 	}
 }
 
-func (m *customSubmissionModel) FindByAssignmentID(ctx context.Context, assignmentID string) ([]*Submission, error) {
-	var submissions []*Submission
+func (m *customSubmissionModel) FindByAssignmentID(ctx context.Context, assignmentID string) ([]*SubmissionStats, error) {
+	var submissionStats []*SubmissionStats
 	aid, err := primitive.ObjectIDFromHex(assignmentID)
 	if err != nil {
 		return nil, err
 	}
-	err = m.conn.Find(ctx, &submissions, bson.M{"assignment_id": aid}, options.Find().SetSort(bson.D{{"_id", 1}}))
+	pipeline := mongo.Pipeline{
+		{{"$match", bson.M{"assignment_id": aid}}},
+		{{"$group", bson.M{
+			"_id":         "$user_id",
+			"status":      bson.M{"$last": "$status"},
+			"version_num": bson.M{"$sum": 1},
+		}}},
+		{{"$sort", bson.D{{"_id", 1}}}},
+	}
+	err = m.conn.Aggregate(ctx, &submissionStats, pipeline)
 	switch err {
 	case nil:
-		return submissions, nil
+		return submissionStats, nil
 	case mon.ErrNotFound:
 		return nil, ErrNotFound
 	default:

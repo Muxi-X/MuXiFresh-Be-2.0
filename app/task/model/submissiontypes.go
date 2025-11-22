@@ -16,3 +16,10 @@ type Submission struct {
 	UpdateAt     time.Time          `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
 	CreateAt     time.Time          `bson:"createAt,omitempty" json:"createAt,omitempty"`
 }
+
+// 按userID分组接收响应的结果
+type SubmissionStats struct {
+	UserId     primitive.ObjectID `bson:"_id,omitempty" json:"user_id,omitempty"`
+	Status     string             `bson:"status,omitempty" json:"status,omitempty"`
+	VersionNum int64              `bson:"version_num,omitempty" json:"version_num,omitempty"`
+}
