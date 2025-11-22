@@ -52,6 +52,9 @@ func (l *SetSubmissionCommentLogic) SetSubmissionComment(in *pb.SetSubmissionCom
 
 	//如果是管理员评论才更新审阅状态
 	userInfo, err := l.svcCtx.UserInfoModel.FindOne(l.ctx, in.UserId)
+	if err != nil {
+		return nil, err
+	}
 	if userInfo.UserType == globalKey.Admin || userInfo.UserType == globalKey.SuperAdmin {
 		submission := model.Submission{
 			ID:     submissionId,
