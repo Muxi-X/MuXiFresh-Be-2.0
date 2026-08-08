@@ -1,11 +1,12 @@
 package logic
 
 import (
-	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/tube"
 	"context"
 
+	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/tube"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/types"
+	"MuXiFresh-Be-2.0/common/ctxData"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,7 +26,11 @@ func NewGetQNTokenLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetQNT
 }
 
 func (l *GetQNTokenLogic) GetQNToken(req *types.GetQNTokenReq) (resp *types.GetQNTokenResp, err error) {
-	qnToken := tube.GetQNToken()
+	qnToken, err := tube.GetQNToken(ctxData.GetUserIdFromCtx(l.ctx))
+	if err != nil {
+		return nil, err
+	}
+
 	return &types.GetQNTokenResp{
 		QNToken: qnToken,
 	}, nil
