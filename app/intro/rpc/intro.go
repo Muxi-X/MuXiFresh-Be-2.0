@@ -9,6 +9,7 @@ import (
 	"MuXiFresh-Be-2.0/app/intro/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/app/intro/rpc/pb"
 	"MuXiFresh-Be-2.0/common/nacos"
+	"MuXiFresh-Be-2.0/common/rpcauth"
 
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -33,6 +34,12 @@ func main() {
 		}
 	})
 	defer s.Stop()
+
+	if interceptor, err := rpcauth.UnaryServerInterceptor(c.Infra.RpcAuth.Token); err != nil {
+		panic(err)
+	} else {
+		s.AddUnaryInterceptors(interceptor)
+	}
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()

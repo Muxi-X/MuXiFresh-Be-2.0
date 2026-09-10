@@ -4,7 +4,7 @@ Nacos 中的配置内容统一使用 YAML，不再接受 JSON。完整模板位�
 
 配置分为两类：
 
-- `infra`：共享的 MongoDB、Redis、Etcd、Kafka、SMTP 和对象存储连接信息及账密。
+- `infra`：共享的 MongoDB、Redis、Etcd、Kafka、SMTP、对象存储连接信息及账密，以及中间件开关和 RPC 鉴权密钥。
 - 服务配置：每个进程独立维护，只包含端口、RPC、JWT、Kafka 和业务参数等自身配置。
 
 默认情况下，所有配置位于当前 Nacos namespace 的 `PROD` group。
@@ -15,7 +15,7 @@ Nacos 自身的地址和账号仍通过环境变量传入，因为应用必须�
 
 | Data ID | 模板 | 用途 |
 | --- | --- | --- |
-| `infra` | [`infra.yaml`](./configs/infra.yaml) | MongoDB、Redis、Etcd、Kafka、SMTP、对象存储 |
+| `infra` | [`infra.yaml`](./configs/infra.yaml) | MongoDB、Redis、Etcd、Kafka、SMTP、对象存储、中间件开关、RPC 鉴权密钥 |
 | `accountCenter` | [`accountCenter.yaml`](./configs/accountCenter.yaml) | 账户 RPC |
 | `assignment` | [`assignment.yaml`](./configs/assignment.yaml) | 任务 RPC |
 | `comment` | [`comment.yaml`](./configs/comment.yaml) | 评论 RPC |
@@ -44,6 +44,8 @@ Nacos 自身的地址和账号仍通过环境变量传入，因为应用必须�
 - Kafka Brokers、账号、密码
 - SMTP Host、端口、账号、密码
 - 对象存储 AccessKey、SecretKey、Bucket、Domain
+- 中间件开关（`Middlewares`，如 `Recover`）
+- RPC 鉴权共享密钥（`RpcAuth.Token`）：服务间 RPC 调用鉴权，所有 RPC server/API client 共享；**缺失时全部服务启动失败（fail closed）**，上线前必须先配好
 
 ## 环境变量
 

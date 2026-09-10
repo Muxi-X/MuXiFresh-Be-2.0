@@ -6,8 +6,10 @@ import (
 	externalModel3 "MuXiFresh-Be-2.0/app/schedule/model"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	externalModel1 "MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/rpcauth"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
@@ -19,6 +21,14 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	clientInterceptor, err := rpcauth.UnaryClientInterceptor(c.Infra.RpcAuth.Token)
+	if err != nil {
+		panic(err)
+	}
+	rpcOpts := []zrpc.ClientOption{
+		zrpc.WithDialOption(grpc.WithChainUnaryInterceptor(clientInterceptor)),
+	}
+
 	if err := EnsureReviewIndexes(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB); err != nil {
 		logx.Errorf("EnsureReviewIndexes failed: %v", err)
 	}
@@ -26,7 +36,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:         c,
 		EntryFormModel: externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
-		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf)),
+		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
 		ScheduleClient: externalModel3.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
 		UserInfoModel:  externalModel1.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
 	}

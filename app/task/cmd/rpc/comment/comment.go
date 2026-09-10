@@ -2,6 +2,7 @@ package main
 
 import (
 	"MuXiFresh-Be-2.0/common/nacos"
+	"MuXiFresh-Be-2.0/common/rpcauth"
 	"flag"
 	"fmt"
 
@@ -33,6 +34,12 @@ func main() {
 		}
 	})
 	defer s.Stop()
+
+	if interceptor, err := rpcauth.UnaryServerInterceptor(c.Infra.RpcAuth.Token); err != nil {
+		panic(err)
+	} else {
+		s.AddUnaryInterceptors(interceptor)
+	}
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()

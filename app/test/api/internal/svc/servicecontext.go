@@ -6,7 +6,9 @@ import (
 	"MuXiFresh-Be-2.0/app/test/rpc/testclient"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	userauthModel "MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/rpcauth"
 	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
@@ -18,10 +20,18 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	clientInterceptor, err := rpcauth.UnaryClientInterceptor(c.Infra.RpcAuth.Token)
+	if err != nil {
+		panic(err)
+	}
+	rpcOpts := []zrpc.ClientOption{
+		zrpc.WithDialOption(grpc.WithChainUnaryInterceptor(clientInterceptor)),
+	}
+
 	return &ServiceContext{
 		Config:         c,
-		TestClient:     testclient.NewTestClient(zrpc.MustNewClient(c.TestConf)),
-		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf)),
+		TestClient:     testclient.NewTestClient(zrpc.MustNewClient(c.TestConf, rpcOpts...)),
+		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
 		FormClient:     model.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
 		UserInfoClient: userauthModel.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
 	}

@@ -19,6 +19,13 @@ type Config struct {
 	SMTP          SMTPConf
 	ObjectStorage ObjectStorageConf
 	Middlewares   MiddlewaresConf
+	RpcAuth       RpcAuthConf
+}
+
+// RpcAuthConf 是服务间 RPC 调用的共享密钥配置。
+// Server 侧未配置（空）时启动失败（fail closed），防止静默裸奔。
+type RpcAuthConf struct {
+	Token string
 }
 
 // MiddlewaresConf mirrors go-zero's server middleware switches

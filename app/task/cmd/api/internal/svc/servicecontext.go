@@ -6,7 +6,9 @@ import (
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/commentclient"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/submission/submissionclient"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
+	"MuXiFresh-Be-2.0/common/rpcauth"
 	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
@@ -18,11 +20,19 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	clientInterceptor, err := rpcauth.UnaryClientInterceptor(c.Infra.RpcAuth.Token)
+	if err != nil {
+		panic(err)
+	}
+	rpcOpts := []zrpc.ClientOption{
+		zrpc.WithDialOption(grpc.WithChainUnaryInterceptor(clientInterceptor)),
+	}
+
 	return &ServiceContext{
 		Config:           c,
-		AssignmentClient: assignmentclient.NewAssignmentClient(zrpc.MustNewClient(c.AssignmentConf)),
-		SubmissionClient: submissionclient.NewSubmissionClient(zrpc.MustNewClient(c.SubmissionConf)),
-		CommentClient:    commentclient.NewCommentClient(zrpc.MustNewClient(c.CommentConf)),
-		UserClient:       userclient.NewUserClient(zrpc.MustNewClient(c.UserConf)),
+		AssignmentClient: assignmentclient.NewAssignmentClient(zrpc.MustNewClient(c.AssignmentConf, rpcOpts...)),
+		SubmissionClient: submissionclient.NewSubmissionClient(zrpc.MustNewClient(c.SubmissionConf, rpcOpts...)),
+		CommentClient:    commentclient.NewCommentClient(zrpc.MustNewClient(c.CommentConf, rpcOpts...)),
+		UserClient:       userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
 	}
 }
