@@ -11,6 +11,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type UpdateFormLogic struct {
@@ -41,7 +42,7 @@ func (l *UpdateFormLogic) UpdateForm(req *types.CreateReq) (resp *types.CreateRe
 		return nil, errors.New("无权修改该报名表")
 	}
 
-	_, err = l.svcCtx.FormClient.UpdateForm(l.ctx, &entryformclient.CreateReq{
+	_, err = l.svcCtx.FormClient.UpdateForm(metadata.AppendToOutgoingContext(l.ctx, ctxData.CallerIDKey, userId), &entryformclient.CreateReq{
 		FormId:        req.FormId,
 		UserId:        userId,
 		Avatar:        req.Avatar,

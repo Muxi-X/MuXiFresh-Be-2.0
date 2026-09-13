@@ -27,7 +27,16 @@ func NewUpdateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Update
 }
 
 func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
-	u, err := primitive.ObjectIDFromHex(in.UserId)
+	callerID, err := callerIDFromCtx(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId); err != nil {
+		return nil, err
+	}
+
+	// 归属只信任 metadata 中的 callerID，忽略入参 in.UserId，防止直连篡改表单归属
+	u, err := primitive.ObjectIDFromHex(callerID)
 	if err != nil {
 		return nil, err
 	}

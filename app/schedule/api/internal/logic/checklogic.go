@@ -12,6 +12,7 @@ import (
 	"MuXiFresh-Be-2.0/app/schedule/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type CheckLogic struct {
@@ -47,7 +48,7 @@ func (l *CheckLogic) Check(req *types.CheckReq) (resp *types.CheckResp, err erro
 		return nil, errors.New("无权查看该进度")
 	}
 
-	c, err := l.svcCtx.ScheduleClient.Check(l.ctx, &scheduleclient.CheckReq{
+	c, err := l.svcCtx.ScheduleClient.Check(metadata.AppendToOutgoingContext(l.ctx, ctxData.CallerIDKey, userid), &scheduleclient.CheckReq{
 		UserId:     userid,
 		ScheduleID: req.ScheduleID,
 	})

@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/schedule/model"
 	userauthModel "MuXiFresh-Be-2.0/app/userauth/model"
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 
@@ -28,6 +29,14 @@ func NewCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateLogi
 }
 
 func (l *CreateLogic) Create(in *pb.CreateReq) (*pb.CreateResp, error) {
+	// 归属校验：只允许为调用者本人创建进度，RPC 直连不可信（fail closed）
+	callerID, err := callerIDFromCtx(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if callerID != in.UserId {
+		return nil, errors.New("无权创建该进度")
+	}
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
 		return nil, err

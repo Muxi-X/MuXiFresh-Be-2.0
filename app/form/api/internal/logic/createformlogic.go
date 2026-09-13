@@ -14,6 +14,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type CreateFormLogic struct {
@@ -32,7 +33,7 @@ func NewCreateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 
 func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateResp, err error) {
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
-	CtResp, err := l.svcCtx.FormClient.CreateForm(l.ctx, &entryformclient.CreateReq{
+	CtResp, err := l.svcCtx.FormClient.CreateForm(metadata.AppendToOutgoingContext(l.ctx, ctxData.CallerIDKey, userId), &entryformclient.CreateReq{
 		UserId:        userId,
 		Avatar:        req.Avatar,
 		Major:         req.Major,
