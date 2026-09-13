@@ -103,7 +103,12 @@ func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateRe
 // 避免留下无 schedule/userinfo 关联的孤儿报名表（会被审阅列表静默跳过）。
 // 补偿失败仅记日志，不改变对外返回的原始错误。
 func (l *CreateFormLogic) rollbackEntryForm(formID primitive.ObjectID) {
-	if _, err := l.svcCtx.EntryFormModel.Delete(l.ctx, formID.Hex()); err != nil {
+	// 补偿脱离请求生命周期：请求超时/客户端断连时 l.ctx 已取消，
+	// 用它删除会立即失败、留下孤儿，故用独立的带超时 context。
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if _, err := l.svcCtx.EntryFormModel.Delete(ctx, formID.Hex()); err != nil {
 		logx.WithContext(l.ctx).Errorf("createform rollback entry_form %s failed: %v", formID.Hex(), err)
 	}
 }

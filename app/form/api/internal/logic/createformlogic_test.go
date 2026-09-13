@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"MuXiFresh-Be-2.0/app/form/api/internal/svc"
@@ -17,6 +18,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 )
+
+var errSchedule = errors.New("schedule upsert boom")
 
 type fakeCreateFormClient struct {
 	entryformclient.EntryFormClient
@@ -100,6 +103,106 @@ func TestCreateForm_RollbackOnScheduleFailure(t *testing.T) {
 	}
 }
 
+// schedule FindOneByUserId 失败时也应删除 entry_form
+func TestCreateForm_RollbackOnScheduleLookupFailure(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	deleted := ""
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				deleted = id
+				return 1, nil
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return &mongo.UpdateResult{}, nil
+			},
+			findByUser: func(ctx context.Context, userId string) (*scheduleModel.Schedule, error) {
+				return nil, mon.ErrNotFound
+			},
+		},
+	}
+	l := NewCreateFormLogic(createCtx(userID.Hex()), svcCtx)
+	if _, err := l.CreateForm(newCreateReq()); err == nil {
+		t.Fatal("schedule lookup failure should return error")
+	}
+	if deleted != formID.Hex() {
+		t.Fatalf("entry_form should be rolled back on schedule lookup failure, got %q", deleted)
+	}
+}
+
+// 并发 DuplicateKey 视为已创建继续，但后续 userinfo 失败仍回滚本次新建的表
+func TestCreateForm_RollbackAfterDuplicateKey(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	sid := primitive.NewObjectID()
+	deleted := ""
+	lookedUp := false
+	dupErr := mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}}
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				deleted = id
+				return 1, nil
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return nil, dupErr
+			},
+			findByUser: func(ctx context.Context, userId string) (*scheduleModel.Schedule, error) {
+				lookedUp = true
+				return &scheduleModel.Schedule{ID: sid, UserID: userID}, nil
+			},
+		},
+		UserInfoModelClient: &fakeUserInfoUpdateModel{
+			updateFn: func(ctx context.Context, data *usermodel.UserInfo) (*mongo.UpdateResult, error) {
+				return nil, mon.ErrNotFound
+			},
+		},
+	}
+	l := NewCreateFormLogic(createCtx(userID.Hex()), svcCtx)
+	if _, err := l.CreateForm(newCreateReq()); err == nil {
+		t.Fatal("userinfo failure after duplicate key should return error")
+	}
+	// DuplicateKey 应视为已创建继续执行（走到 FindOneByUserId），
+	// 而非在 upsert 处提前回滚，否则本测试无法区分两条路径。
+	if !lookedUp {
+		t.Fatal("duplicate key should be treated as already-created and continue to schedule lookup")
+	}
+	if deleted != formID.Hex() {
+		t.Fatalf("entry_form should be rolled back after duplicate key, got %q", deleted)
+	}
+}
+
+// 补偿删除自身失败时仍返回原始错误
+func TestCreateForm_RollbackFailureKeepsOriginalError(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				return 0, errors.New("delete failed")
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return nil, errSchedule
+			},
+		},
+	}
+	l := NewCreateFormLogic(createCtx(userID.Hex()), svcCtx)
+	_, err := l.CreateForm(newCreateReq())
+	if !errors.Is(err, errSchedule) {
+		t.Fatalf("original error should be preserved when rollback fails, got %v", err)
+	}
+}
+
 // 第 3 步（userinfo 回写）失败时同样应删除 entry_form
 func TestCreateForm_RollbackOnUserInfoFailure(t *testing.T) {
 	userID := primitive.NewObjectID()
@@ -173,6 +276,43 @@ func TestCreateForm_RollbackOnMissingUserInfo(t *testing.T) {
 	}
 	if deleted != formID.Hex() {
 		t.Fatalf("entry_form should be rolled back when userinfo missing, got %q", deleted)
+	}
+}
+
+// 请求上下文已取消时，补偿仍应执行（脱离请求生命周期）
+func TestCreateForm_RollbackUsesDetachedContext(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	deleted := ""
+	canceled := context.WithValue(context.Background(), ctxData.CtxKeyJwtUserID, userID.Hex())
+	canceled, cancel := context.WithCancel(canceled)
+	cancel() // 模拟请求已超时/客户端断连
+
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				// 补偿 context 不应处于已取消状态
+				if ctx.Err() != nil {
+					return 0, ctx.Err()
+				}
+				deleted = id
+				return 1, nil
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return nil, context.DeadlineExceeded
+			},
+		},
+	}
+	l := NewCreateFormLogic(canceled, svcCtx)
+	_, err := l.CreateForm(newCreateReq())
+	if err == nil {
+		t.Fatal("schedule failure should return error")
+	}
+	if deleted != formID.Hex() {
+		t.Fatal("rollback should still run with a detached context despite request cancellation")
 	}
 }
 
