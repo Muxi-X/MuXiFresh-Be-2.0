@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/app/form/rpc/pb"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 	"fmt"
@@ -35,13 +36,17 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if callerID != in.UserId {
 		return nil, errors.New("无权创建该报名表")
 	}
+	avatar, err := tool.ValidateAvatarURL(in.Avatar)
+	if err != nil {
+		return nil, err
+	}
 	userId, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
 		return nil, err
 	}
 	formID, err := l.svcCtx.FormClient.InsertReturnID(l.ctx, &model.EntryForm{
 		UserId:        userId,
-		Avatar:        in.Avatar,
+		Avatar:        avatar,
 		Major:         in.Major,
 		Grade:         in.Grade,
 		Gender:        in.Gender,

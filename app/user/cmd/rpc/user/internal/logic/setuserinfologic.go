@@ -5,6 +5,7 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -26,13 +27,17 @@ func NewSetUserInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetUs
 
 func (l *SetUserInfoLogic) SetUserInfo(in *pb.SetUserInfoReq) (*pb.SetUserInfoResp, error) {
 
+	avatar, err := tool.ValidateAvatarURL(in.Avatar)
+	if err != nil {
+		return nil, err
+	}
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
 		return nil, err
 	}
 	userInfo := &model.UserInfo{
 		ID:     uid,
-		Avatar: in.Avatar,
+		Avatar: avatar,
 		Name:   in.Name,
 		School: in.School,
 		QQ:     in.QQ,
