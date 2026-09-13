@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// ErrInvalidAvatarURL 头像地址非法。
 var ErrInvalidAvatarURL = errors.New("非法的头像地址")
 
 // badURLSegments 是前端模板串拼接失败时可能落入 URL 的坏字面量
@@ -17,12 +16,8 @@ var badURLSegments = map[string]bool{
 	"nan":       true,
 }
 
-// ValidateAvatarURL 校验头像地址：
-//   - 允许空串（表示未上传头像）
-//   - 否则必须是 http/https 且带主机名
-//   - 各路径段与整体不得包含前端拼接失败产生的坏字面量（undefined/null/NaN/[object Object]）
-//
-// 该 URL 由客户端提交、可被直连伪造，前端守卫不可信，故在服务端校验。
+// ValidateAvatarURL 允许空串（未上传头像），否则要求 http/https 且不含拼接坏字面量。
+// URL 由客户端提交、可被直连伪造，前端守卫不可信，故在服务端校验。
 func ValidateAvatarURL(raw string) error {
 	s := strings.TrimSpace(raw)
 	if s == "" {
@@ -40,7 +35,6 @@ func ValidateAvatarURL(raw string) error {
 		return ErrInvalidAvatarURL
 	}
 
-	// 坏字面量整体兜底（如 "[object Object]" 被编码或原样拼入）
 	if strings.Contains(strings.ToLower(s), "[object") {
 		return ErrInvalidAvatarURL
 	}
