@@ -2,6 +2,7 @@ package svc
 
 import (
 	"MuXiFresh-Be-2.0/app/form/api/internal/config"
+	externalModel2 "MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/entryformclient"
 	schedulemodel "MuXiFresh-Be-2.0/app/schedule/model"
 	externalModel "MuXiFresh-Be-2.0/app/userauth/model"
@@ -13,6 +14,7 @@ import (
 type ServiceContext struct {
 	Config              config.Config
 	FormClient          entryformclient.EntryFormClient
+	EntryFormModel      externalModel2.EntryFormModel
 	UserInfoModelClient externalModel.UserInfoModel
 	ScheduleModel       schedulemodel.ScheduleModel
 }
@@ -29,6 +31,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:              c,
 		FormClient:          entryformclient.NewEntryFormClient(zrpc.MustNewClient(c.FormConf, rpcOpts...)),
+		EntryFormModel:      externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
 		UserInfoModelClient: externalModel.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
 		ScheduleModel:       schedulemodel.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
 	}
