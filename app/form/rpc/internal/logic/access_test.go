@@ -76,24 +76,19 @@ func TestCheckEntryFormReadAccess(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	// 本人可读
 	if err := checkEntryFormReadAccess(ctx, newSvc(globalKey.Freshman), owner.Hex(), formID.Hex()); err != nil {
 		t.Fatalf("owner should read own form, got %v", err)
 	}
-	// 管理员可读他人
 	if err := checkEntryFormReadAccess(ctx, newSvc(globalKey.Admin), primitive.NewObjectID().Hex(), formID.Hex()); err != nil {
 		t.Fatalf("admin should read others form, got %v", err)
 	}
-	// 超管可读他人
 	if err := checkEntryFormReadAccess(ctx, newSvc(globalKey.SuperAdmin), primitive.NewObjectID().Hex(), formID.Hex()); err != nil {
 		t.Fatalf("super admin should read others form, got %v", err)
 	}
-	// 普通新生不可读他人
 	errOther := checkEntryFormReadAccess(ctx, newSvc(globalKey.Freshman), primitive.NewObjectID().Hex(), formID.Hex())
 	if errOther == nil || errOther.Error() != "无权查看该报名表" {
 		t.Fatalf("freshman should be rejected with normalized error, got %v", errOther)
 	}
-	// 不存在的表单返回同样的错误，不泄露存在性
 	errMissing := checkEntryFormReadAccess(ctx, newSvc(globalKey.Admin), owner.Hex(), primitive.NewObjectID().Hex())
 	if errMissing == nil || errMissing.Error() != "无权查看该报名表" {
 		t.Fatalf("missing form should reuse same error, got %v", errMissing)
@@ -126,7 +121,6 @@ func TestCheckEntryFormWriteAccess(t *testing.T) {
 	if errNonOwner == nil || errNonOwner.Error() != "无权修改该报名表" {
 		t.Fatalf("non-owner should be rejected with normalized error, got %v", errNonOwner)
 	}
-	// 不存在的表单返回同样的错误，不泄露存在性
 	errMissing := checkEntryFormWriteAccess(ctx, svcCtx, owner.Hex(), primitive.NewObjectID().Hex())
 	if errMissing == nil || errMissing.Error() != "无权修改该报名表" {
 		t.Fatalf("missing form should reuse same error, got %v", errMissing)

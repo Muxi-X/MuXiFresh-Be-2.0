@@ -74,7 +74,6 @@ func newCreateReq() *types.CreateReq {
 	}
 }
 
-// 第 2 步（schedule upsert）失败时应删除已插入的 entry_form 并返回原始错误
 func TestCreateForm_RollbackOnScheduleFailure(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -103,7 +102,6 @@ func TestCreateForm_RollbackOnScheduleFailure(t *testing.T) {
 	}
 }
 
-// schedule FindOneByUserId 失败时也应删除 entry_form
 func TestCreateForm_RollbackOnScheduleLookupFailure(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -134,7 +132,6 @@ func TestCreateForm_RollbackOnScheduleLookupFailure(t *testing.T) {
 	}
 }
 
-// 并发 DuplicateKey 视为已创建继续，但后续 userinfo 失败仍回滚本次新建的表
 func TestCreateForm_RollbackAfterDuplicateKey(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -169,8 +166,6 @@ func TestCreateForm_RollbackAfterDuplicateKey(t *testing.T) {
 	if _, err := l.CreateForm(newCreateReq()); err == nil {
 		t.Fatal("userinfo failure after duplicate key should return error")
 	}
-	// DuplicateKey 应视为已创建继续执行（走到 FindOneByUserId），
-	// 而非在 upsert 处提前回滚，否则本测试无法区分两条路径。
 	if !lookedUp {
 		t.Fatal("duplicate key should be treated as already-created and continue to schedule lookup")
 	}
@@ -179,7 +174,6 @@ func TestCreateForm_RollbackAfterDuplicateKey(t *testing.T) {
 	}
 }
 
-// 补偿删除自身失败时仍返回原始错误
 func TestCreateForm_RollbackFailureKeepsOriginalError(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -203,7 +197,6 @@ func TestCreateForm_RollbackFailureKeepsOriginalError(t *testing.T) {
 	}
 }
 
-// 第 3 步（userinfo 回写）失败时同样应删除 entry_form
 func TestCreateForm_RollbackOnUserInfoFailure(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -241,7 +234,6 @@ func TestCreateForm_RollbackOnUserInfoFailure(t *testing.T) {
 	}
 }
 
-// userinfo 不存在（MatchedCount=0）时也应回滚
 func TestCreateForm_RollbackOnMissingUserInfo(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -279,7 +271,7 @@ func TestCreateForm_RollbackOnMissingUserInfo(t *testing.T) {
 	}
 }
 
-// 请求上下文已取消时，补偿仍应执行（脱离请求生命周期）
+// 请求上下文已取消时补偿仍应执行：验证补偿用独立 context
 func TestCreateForm_RollbackUsesDetachedContext(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
@@ -316,7 +308,6 @@ func TestCreateForm_RollbackUsesDetachedContext(t *testing.T) {
 	}
 }
 
-// 成功路径不应触发删除
 func TestCreateForm_SuccessNoRollback(t *testing.T) {
 	userID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()

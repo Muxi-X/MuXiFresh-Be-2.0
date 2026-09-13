@@ -83,7 +83,6 @@ func TestCheck_RejectsMissingMetadata(t *testing.T) {
 	}
 }
 
-// 入参 UserId 与调用者不一致时拒绝
 func TestCheck_RejectsMismatchedCaller(t *testing.T) {
 	caller := primitive.NewObjectID()
 	other := primitive.NewObjectID()
@@ -118,7 +117,6 @@ func TestCheck_RejectsForeignSchedule(t *testing.T) {
 	}
 }
 
-// 合法路径：本人查自己的 schedule 成功
 func TestCheck_OwnerSuccess(t *testing.T) {
 	caller := primitive.NewObjectID()
 	sid := primitive.NewObjectID()
@@ -188,7 +186,6 @@ func TestCreate_RejectsMissingMetadata(t *testing.T) {
 	}
 }
 
-// Create 拒绝为他人创建进度
 func TestCreate_RejectsMismatchedCaller(t *testing.T) {
 	caller := primitive.NewObjectID()
 	other := primitive.NewObjectID()
@@ -200,7 +197,6 @@ func TestCreate_RejectsMismatchedCaller(t *testing.T) {
 	}
 }
 
-// Create 合法路径：为本人创建成功
 func TestCreate_OwnerSuccess(t *testing.T) {
 	caller := primitive.NewObjectID()
 	updated := false
