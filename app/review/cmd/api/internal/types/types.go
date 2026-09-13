@@ -38,6 +38,7 @@ type Row struct {
 	Gender          string `json:"gender"`
 	Major           string `json:"major"`
 	Phone           string `json:"phone"`
+	QQ              string `json:"qq"`
 	FormID          string `json:"form_id"`
 	UserId          string `json:"user_id"`
 	AdmissionStatus string `json:"admission_status"`

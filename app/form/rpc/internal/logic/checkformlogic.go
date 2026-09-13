@@ -24,6 +24,14 @@ func NewCheckFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CheckFo
 }
 
 func (l *CheckFormLogic) CheckForm(in *pb.CheckReq) (*pb.CheckResp, error) {
+	callerID, err := callerIDFromCtx(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkEntryFormReadAccess(l.ctx, l.svcCtx, callerID, in.EntryFormID); err != nil {
+		return nil, err
+	}
+
 	r, err := l.svcCtx.FormClient.FindOne(l.ctx, in.EntryFormID)
 	if err != nil {
 		return nil, err

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type CreateScheduleLogic struct {
@@ -26,7 +27,7 @@ func NewCreateScheduleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cr
 
 func (l *CreateScheduleLogic) CreateSchedule(req *types.CreateReq) (resp *types.CreateResp, err error) {
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
-	_, err = l.svcCtx.ScheduleClient.Create(l.ctx, &scheduleclient.CreateReq{
+	_, err = l.svcCtx.ScheduleClient.Create(metadata.AppendToOutgoingContext(l.ctx, ctxData.CallerIDKey, userId), &scheduleclient.CreateReq{
 		UserId: userId,
 	})
 	if err != nil {

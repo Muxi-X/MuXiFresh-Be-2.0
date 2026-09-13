@@ -6,6 +6,7 @@ import (
 	externalModel "MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type CreateFormLogic struct {
@@ -32,7 +34,7 @@ func NewCreateFormLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 
 func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateResp, err error) {
 	userId := ctxData.GetUserIdFromCtx(l.ctx)
-	CtResp, err := l.svcCtx.FormClient.CreateForm(l.ctx, &entryformclient.CreateReq{
+	CtResp, err := l.svcCtx.FormClient.CreateForm(metadata.AppendToOutgoingContext(l.ctx, ctxData.CallerIDKey, userId), &entryformclient.CreateReq{
 		UserId:        userId,
 		Avatar:        req.Avatar,
 		Major:         req.Major,
@@ -65,25 +67,48 @@ func (l *CreateFormLogic) CreateForm(req *types.CreateReq) (resp *types.CreateRe
 		AdmissionStatus: "已报名",
 	})
 	if err != nil && !mongo.IsDuplicateKeyError(err) {
+		l.rollbackEntryForm(f)
 		return nil, err
 	}
 
 	// upsert 后查一次拿 scheduleID，写入 userinfo 关联
 	schedule, err := l.svcCtx.ScheduleModel.FindOneByUserId(l.ctx, userId)
 	if err != nil {
+		l.rollbackEntryForm(f)
 		return nil, err
 	}
 	sid := schedule.ID
-	_, err = l.svcCtx.UserInfoModelClient.Update(l.ctx, &externalModel.UserInfo{
+	res, err := l.svcCtx.UserInfoModelClient.Update(l.ctx, &externalModel.UserInfo{
 		ID:          u,
 		EntryFormID: f,
 		ScheduleID:  sid,
 		UpdateAt:    time.Now(),
 	})
 	if err != nil {
+		l.rollbackEntryForm(f)
 		return nil, err
+	}
+	// userinfo 不存在时 Update 静默 no-op（MatchedCount=0），此时表未被关联，
+	// 必须回滚，否则留下"有表无 userinfo"的孤儿。
+	if res.MatchedCount == 0 {
+		l.rollbackEntryForm(f)
+		return nil, errors.New("用户信息缺失，报名失败")
 	}
 	return &types.CreateResp{
 		Flag: true,
 	}, nil
+}
+
+// rollbackEntryForm 在报名后续步骤失败时删除第 1 步已插入的 entry_form，
+// 避免留下无 schedule/userinfo 关联的孤儿报名表（会被审阅列表静默跳过）。
+// 补偿失败仅记日志，不改变对外返回的原始错误。
+func (l *CreateFormLogic) rollbackEntryForm(formID primitive.ObjectID) {
+	// 补偿脱离请求生命周期：请求超时/客户端断连时 l.ctx 已取消，
+	// 用它删除会立即失败、留下孤儿，故用独立的带超时 context。
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if _, err := l.svcCtx.EntryFormModel.Delete(ctx, formID.Hex()); err != nil {
+		logx.WithContext(l.ctx).Errorf("createform rollback entry_form %s failed: %v", formID.Hex(), err)
+	}
 }
