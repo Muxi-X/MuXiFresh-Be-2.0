@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/app/form/rpc/pb"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,6 +33,9 @@ func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 		return nil, err
 	}
 	if err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId); err != nil {
+		return nil, err
+	}
+	if err := tool.ValidateAvatarURL(in.Avatar); err != nil {
 		return nil, err
 	}
 

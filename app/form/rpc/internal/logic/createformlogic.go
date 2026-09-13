@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/app/form/rpc/pb"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 	"fmt"
@@ -34,6 +35,9 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	// 报名表归属只允许本人：拒绝内部调用者代他人建表（ID 由客户端传入不可信）
 	if callerID != in.UserId {
 		return nil, errors.New("无权创建该报名表")
+	}
+	if err := tool.ValidateAvatarURL(in.Avatar); err != nil {
+		return nil, err
 	}
 	userId, err := primitive.ObjectIDFromHex(in.UserId)
 	if err != nil {
