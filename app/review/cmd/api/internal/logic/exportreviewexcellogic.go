@@ -93,7 +93,7 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 		byGroup[r.Group] = append(byGroup[r.Group], r)
 	}
 
-	headers := []string{"姓名", "年级", "学校", "组别", "性别", "专业", "电话", "报名表ID", "录取状态", "知识储备", "报名理由", "自我简介", "附加问题"}
+	headers := []string{"姓名", "年级", "学校", "组别", "性别", "专业", "电话", "QQ", "报名表ID", "录取状态", "知识储备", "报名理由", "自我简介", "附加问题"}
 
 	for idx, g := range targets {
 		sheet := g.cn
@@ -114,12 +114,13 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 			f.SetCellValue(sheet, "E"+row, r.Gender)
 			f.SetCellValue(sheet, "F"+row, r.Major)
 			f.SetCellValue(sheet, "G"+row, r.Phone)
-			f.SetCellValue(sheet, "H"+row, r.FormID)
-			f.SetCellValue(sheet, "I"+row, r.AdmissionStatus)
-			f.SetCellValue(sheet, "J"+row, r.Understanding)
-			f.SetCellValue(sheet, "K"+row, r.Reason)
-			f.SetCellValue(sheet, "L"+row, r.SelfIntro)
-			f.SetCellValue(sheet, "M"+row, r.ExtraQuestion)
+			f.SetCellValue(sheet, "H"+row, r.QQ)
+			f.SetCellValue(sheet, "I"+row, r.FormID)
+			f.SetCellValue(sheet, "J"+row, r.AdmissionStatus)
+			f.SetCellValue(sheet, "K"+row, r.Understanding)
+			f.SetCellValue(sheet, "L"+row, r.Reason)
+			f.SetCellValue(sheet, "M"+row, r.SelfIntro)
+			f.SetCellValue(sheet, "N"+row, r.ExtraQuestion)
 		}
 	}
 
