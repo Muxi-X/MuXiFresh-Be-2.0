@@ -35,7 +35,8 @@ func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId); err != nil {
 		return nil, err
 	}
-	if err := tool.ValidateAvatarURL(in.Avatar); err != nil {
+	avatar, err := tool.ValidateAvatarURL(in.Avatar)
+	if err != nil {
 		return nil, err
 	}
 
@@ -53,7 +54,7 @@ func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	updateRet, err := l.svcCtx.FormClient.Update(l.ctx, &model.EntryForm{
 		UserId:        u,
 		ID:            f,
-		Avatar:        in.Avatar,
+		Avatar:        avatar,
 		Major:         in.Major,
 		Grade:         in.Grade,
 		Gender:        in.Gender,

@@ -27,7 +27,8 @@ func NewSetUserInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetUs
 
 func (l *SetUserInfoLogic) SetUserInfo(in *pb.SetUserInfoReq) (*pb.SetUserInfoResp, error) {
 
-	if err := tool.ValidateAvatarURL(in.Avatar); err != nil {
+	avatar, err := tool.ValidateAvatarURL(in.Avatar)
+	if err != nil {
 		return nil, err
 	}
 	uid, err := primitive.ObjectIDFromHex(in.UserId)
@@ -36,7 +37,7 @@ func (l *SetUserInfoLogic) SetUserInfo(in *pb.SetUserInfoReq) (*pb.SetUserInfoRe
 	}
 	userInfo := &model.UserInfo{
 		ID:     uid,
-		Avatar: in.Avatar,
+		Avatar: avatar,
 		Name:   in.Name,
 		School: in.School,
 		QQ:     in.QQ,

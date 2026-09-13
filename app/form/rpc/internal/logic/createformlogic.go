@@ -36,7 +36,8 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if callerID != in.UserId {
 		return nil, errors.New("无权创建该报名表")
 	}
-	if err := tool.ValidateAvatarURL(in.Avatar); err != nil {
+	avatar, err := tool.ValidateAvatarURL(in.Avatar)
+	if err != nil {
 		return nil, err
 	}
 	userId, err := primitive.ObjectIDFromHex(in.UserId)
@@ -45,7 +46,7 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	}
 	formID, err := l.svcCtx.FormClient.InsertReturnID(l.ctx, &model.EntryForm{
 		UserId:        userId,
-		Avatar:        in.Avatar,
+		Avatar:        avatar,
 		Major:         in.Major,
 		Grade:         in.Grade,
 		Gender:        in.Gender,
