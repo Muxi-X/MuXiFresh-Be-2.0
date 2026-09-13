@@ -26,8 +26,8 @@ func (f *fakeFormUserInfoModel) FindOne(ctx context.Context, id string) (*usermo
 
 type fakeFormClient struct {
 	entryformclient.EntryFormClient
-	checkCalled bool
-	checkReq    *entryformclient.CheckReq
+	checkCalled  bool
+	checkReq     *entryformclient.CheckReq
 	updateCalled bool
 }
 
@@ -127,6 +127,48 @@ func TestCheckForm_MyselfWithoutEntryForm(t *testing.T) {
 	_, err := l.CheckForm(&types.CheckReq{EntryFormID: globalKey.Myself})
 	if err == nil || err.Error() != "尚未提交报名表" {
 		t.Fatalf("myself without entry form should be rejected, got: %v", err)
+	}
+}
+
+func TestCheckForm_AdminCanViewOthers(t *testing.T) {
+	adminID := primitive.NewObjectID()
+	otherFormID := primitive.NewObjectID()
+	svcCtx := &svc.ServiceContext{
+		UserInfoModelClient: &fakeFormUserInfoModel{
+			findOneFn: func(ctx context.Context, id string) (*usermodel.UserInfo, error) {
+				return &usermodel.UserInfo{ID: adminID, UserType: globalKey.Admin}, nil
+			},
+		},
+		FormClient: &fakeFormClient{},
+	}
+	l := NewCheckFormLogic(formCtxWithUser(adminID.Hex()), svcCtx)
+
+	_, err := l.CheckForm(&types.CheckReq{EntryFormID: otherFormID.Hex()})
+	if err != nil {
+		t.Fatalf("admin should view any entry form, got err: %v", err)
+	}
+	fc := svcCtx.FormClient.(*fakeFormClient)
+	if !fc.checkCalled || fc.checkReq.EntryFormID != otherFormID.Hex() {
+		t.Fatalf("CheckForm should be called with requested entry form id, got %+v", fc.checkReq)
+	}
+}
+
+func TestCheckForm_SuperAdminCanViewOthers(t *testing.T) {
+	superID := primitive.NewObjectID()
+	otherFormID := primitive.NewObjectID()
+	svcCtx := &svc.ServiceContext{
+		UserInfoModelClient: &fakeFormUserInfoModel{
+			findOneFn: func(ctx context.Context, id string) (*usermodel.UserInfo, error) {
+				return &usermodel.UserInfo{ID: superID, UserType: globalKey.SuperAdmin}, nil
+			},
+		},
+		FormClient: &fakeFormClient{},
+	}
+	l := NewCheckFormLogic(formCtxWithUser(superID.Hex()), svcCtx)
+
+	_, err := l.CheckForm(&types.CheckReq{EntryFormID: otherFormID.Hex()})
+	if err != nil {
+		t.Fatalf("super admin should view any entry form, got err: %v", err)
 	}
 }
 
