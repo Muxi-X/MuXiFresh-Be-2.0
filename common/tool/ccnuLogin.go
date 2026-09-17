@@ -43,8 +43,9 @@ func CCNULogin(studentID string, password string) bool {
 	return len(resp.Cookies()) != 0
 }
 
-// jsessionidPattern 从 script src 中提取 jsessionid 值，大小写不敏感，遇分隔符截断。
-var jsessionidPattern = regexp.MustCompile(`(?i)jsessionid=([^;?&#]*)`)
+// jsessionidPattern 从 script src 中提取 jsessionid 值：大小写不敏感，
+// 要求参数名位于行首或 ; ? & 之后，值遇分隔符截断。
+var jsessionidPattern = regexp.MustCompile(`(?i)(?:^|[;?&])jsessionid=([^;?&#]*)`)
 
 // parseCasLogin 从 CCNU CAS 登录页解析 jsessionid（js）与 lt 参数（st）。
 // 页面结构不匹配或 HTML 缺失时返回 ok=false，避免对 soup 结果越界访问。
