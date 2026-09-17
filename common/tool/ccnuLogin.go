@@ -5,6 +5,7 @@ import (
 	"github.com/anaskhan96/soup"
 	"net/http"
 	"net/http/cookiejar"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -42,6 +43,9 @@ func CCNULogin(studentID string, password string) bool {
 	return len(resp.Cookies()) != 0
 }
 
+// jsessionidPattern 从 script src 中提取 jsessionid 值，大小写不敏感，遇分隔符截断。
+var jsessionidPattern = regexp.MustCompile(`(?i)jsessionid=([^;?&#]*)`)
+
 // parseCasLogin 从 CCNU CAS 登录页解析 jsessionid（js）与 lt 参数（st）。
 // 页面结构不匹配或 HTML 缺失时返回 ok=false，避免对 soup 结果越界访问。
 func parseCasLogin(html string) (js, st string, ok bool) {
@@ -51,17 +55,10 @@ func parseCasLogin(html string) (js, st string, ok bool) {
 		return "", "", false
 	}
 	for _, sc := range casBody.FindAll("script") {
-		src := sc.Attrs()["src"]
-		// 参数名按小写匹配；after 是小写副本的后缀，按其长度从 src 取回原始大小写的值
-		_, after, found := strings.Cut(strings.ToLower(src), "jsessionid=")
-		if !found {
-			continue
+		if m := jsessionidPattern.FindStringSubmatch(sc.Attrs()["src"]); m != nil {
+			js = m[1]
+			break
 		}
-		js = src[len(src)-len(after):]
-		if cut := strings.IndexAny(js, ";?&#"); cut >= 0 {
-			js = js[:cut]
-		}
-		break
 	}
 	if js == "" {
 		return "", "", false

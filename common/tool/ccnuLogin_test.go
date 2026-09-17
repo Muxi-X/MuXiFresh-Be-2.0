@@ -67,9 +67,11 @@ func TestParseCasLogin(t *testing.T) {
 		{"empty-jsessionid", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid="></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, false, "", ""},
 		{"jsessionid-trailing", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1;other=2"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, true, "S1", "LT-1"},
 		{"jsessionid-uppercase", `<html><body id="cas"><script src="/cas/js/cas.js;JSESSIONID=S9"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, true, "S9", "LT-1"},
+		{"jsessionid-query", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1?foo=1"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, true, "S1", "LT-1"},
 		{"no-logo", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div>no logo</div></body></html>`, false, "", ""},
 		{"no-lt", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div class="logo"><input/><input/><input value="x"/></div></body></html>`, false, "", ""},
 		{"empty-lt-value", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div class="logo"><input name="lt" value=""/></div></body></html>`, false, "", ""},
+		{"lt-no-value-attr", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div class="logo"><input name="lt"/></div></body></html>`, false, "", ""},
 		{"valid", validHTML, true, "SESSION123", "LT-12345"},
 		{"captcha-shift", captchaHTML, true, "SESSION123", "LT-999"},
 	}
