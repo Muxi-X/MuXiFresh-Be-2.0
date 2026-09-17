@@ -50,23 +50,31 @@ func parseCasLogin(html string) (js, st string, ok bool) {
 	if casBody.Pointer == nil {
 		return "", "", false
 	}
-	links1 := casBody.FindAll("script")
-	if len(links1) < 3 {
+	for _, sc := range casBody.FindAll("script") {
+		src := sc.Attrs()["src"]
+		// 参数名按小写匹配；after 是小写副本的后缀，按其长度从 src 取回原始大小写的值
+		_, after, found := strings.Cut(strings.ToLower(src), "jsessionid=")
+		if !found {
+			continue
+		}
+		js = src[len(src)-len(after):]
+		if cut := strings.IndexAny(js, ";?&#"); cut >= 0 {
+			js = js[:cut]
+		}
+		break
+	}
+	if js == "" {
 		return "", "", false
 	}
-	src := links1[2].Attrs()["src"]
-	if len(src) < 27 {
-		return "", "", false
-	}
-	js = src[26:]
 	logo := doc.Find("div", "class", "logo")
 	if logo.Pointer == nil {
 		return "", "", false
 	}
-	links2 := logo.FindAll("input")
-	if len(links2) < 3 {
-		return "", "", false
+	for _, in := range logo.FindAll("input") {
+		attrs := in.Attrs()
+		if attrs["name"] == "lt" && attrs["value"] != "" {
+			return js, attrs["value"], true
+		}
 	}
-	st = links2[2].Attrs()["value"]
-	return js, st, true
+	return "", "", false
 }

@@ -15,12 +15,10 @@ func TestCCNULogin(t *testing.T) {
 	username := "xxx"
 	password := "xxx"
 	resp, _ := soup.Get("https://account.ccnu.edu.cn/cas/login?service=http%3A%2F%2Fone.ccnu.edu.cn%2Fcas%2Flogin_portal")
-	doc := soup.HTMLParse(resp)
-	links1 := doc.Find("body", "id", "cas").FindAll("script")
-	js := links1[2].Attrs()["src"][26:]
-	links2 := doc.Find("div", "class", "logo").FindAll("input")
-
-	st := links2[2].Attrs()["value"]
+	js, st, ok := parseCasLogin(resp)
+	if !ok {
+		t.Fatal("parseCasLogin failed")
+	}
 	jar, _ := cookiejar.New(&cookiejar.Options{})
 
 	client := &http.Client{
@@ -43,10 +41,16 @@ func TestCCNULogin(t *testing.T) {
 
 func TestParseCasLogin(t *testing.T) {
 	validHTML := `<html><body id="cas">` +
-		`<script src="https://account.ccnu.edu.cn/cas/js/a.js"></script>` +
-		`<script src="https://account.ccnu.edu.cn/cas/js/b.js"></script>` +
-		`<script src="https://account.ccnu.edu.cn/cas/js/c.js"></script>` +
-		`<div class="logo"><input/><input/><input value="LT-12345"/></div>` +
+		`<script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.1/html5shiv.js"></script>` +
+		`<script src="/cas/js/jquery.min.js;jsessionid=SESSION123"></script>` +
+		`<script src="/cas/js/cas.js;jsessionid=SESSION123"></script>` +
+		`<div class="logo"><input name="username"/><input name="password"/><input name="lt" value="LT-12345"/></div>` +
+		`</body></html>`
+
+	captchaHTML := `<html><body id="cas">` +
+		`<script src="/cas/js/jquery.min.js;jsessionid=SESSION123"></script>` +
+		`<script src="/cas/js/cas.js;jsessionid=SESSION123"></script>` +
+		`<div class="logo"><input name="username"/><input name="password"/><input name="captcha"/><input name="lt" value="LT-999"/></div>` +
 		`</body></html>`
 
 	cases := []struct {
@@ -59,10 +63,15 @@ func TestParseCasLogin(t *testing.T) {
 		{"empty", "", false, "", ""},
 		{"short", "<html><body></body></html>", false, "", ""},
 		{"no-cas", "<html><body><div>hello</div></body></html>", false, "", ""},
-		{"few-scripts", `<html><body id="cas"><script src="https://a.com/1.js"></script></body></html>`, false, "", ""},
-		{"short-src", `<html><body id="cas"><script src="https://a.com/1.js"></script><script src="https://a.com/2.js"></script><script src="x"></script></body></html>`, false, "", ""},
-		{"no-logo", `<html><body id="cas"><script src="https://account.ccnu.edu.cn/cas/js/a.js"></script><script src="https://account.ccnu.edu.cn/cas/js/b.js"></script><script src="https://account.ccnu.edu.cn/cas/js/c.js"></script><div>no logo</div></body></html>`, false, "", ""},
-		{"valid", validHTML, true, "n/cas/js/c.js", "LT-12345"},
+		{"no-jsessionid", `<html><body id="cas"><script src="/cas/js/cas.js"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, false, "", ""},
+		{"empty-jsessionid", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid="></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, false, "", ""},
+		{"jsessionid-trailing", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1;other=2"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, true, "S1", "LT-1"},
+		{"jsessionid-uppercase", `<html><body id="cas"><script src="/cas/js/cas.js;JSESSIONID=S9"></script><div class="logo"><input name="lt" value="LT-1"/></div></body></html>`, true, "S9", "LT-1"},
+		{"no-logo", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div>no logo</div></body></html>`, false, "", ""},
+		{"no-lt", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div class="logo"><input/><input/><input value="x"/></div></body></html>`, false, "", ""},
+		{"empty-lt-value", `<html><body id="cas"><script src="/cas/js/cas.js;jsessionid=S1"></script><div class="logo"><input name="lt" value=""/></div></body></html>`, false, "", ""},
+		{"valid", validHTML, true, "SESSION123", "LT-12345"},
+		{"captcha-shift", captchaHTML, true, "SESSION123", "LT-999"},
 	}
 
 	for _, tc := range cases {
