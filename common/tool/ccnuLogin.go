@@ -5,6 +5,7 @@ import (
 	"github.com/anaskhan96/soup"
 	"net/http"
 	"net/http/cookiejar"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -42,6 +43,10 @@ func CCNULogin(studentID string, password string) bool {
 	return len(resp.Cookies()) != 0
 }
 
+// jsessionidPattern 从 script src 中提取 jsessionid 值：大小写不敏感，
+// 要求参数名位于行首或 ; ? & 之后，值遇分隔符截断。
+var jsessionidPattern = regexp.MustCompile(`(?i)(?:^|[;?&])jsessionid=([^;?&#]*)`)
+
 // parseCasLogin 从 CCNU CAS 登录页解析 jsessionid（js）与 lt 参数（st）。
 // 页面结构不匹配或 HTML 缺失时返回 ok=false，避免对 soup 结果越界访问。
 func parseCasLogin(html string) (js, st string, ok bool) {
@@ -50,23 +55,24 @@ func parseCasLogin(html string) (js, st string, ok bool) {
 	if casBody.Pointer == nil {
 		return "", "", false
 	}
-	links1 := casBody.FindAll("script")
-	if len(links1) < 3 {
+	for _, sc := range casBody.FindAll("script") {
+		if m := jsessionidPattern.FindStringSubmatch(sc.Attrs()["src"]); m != nil {
+			js = m[1]
+			break
+		}
+	}
+	if js == "" {
 		return "", "", false
 	}
-	src := links1[2].Attrs()["src"]
-	if len(src) < 27 {
-		return "", "", false
-	}
-	js = src[26:]
 	logo := doc.Find("div", "class", "logo")
 	if logo.Pointer == nil {
 		return "", "", false
 	}
-	links2 := logo.FindAll("input")
-	if len(links2) < 3 {
-		return "", "", false
+	for _, in := range logo.FindAll("input") {
+		attrs := in.Attrs()
+		if attrs["name"] == "lt" && attrs["value"] != "" {
+			return js, attrs["value"], true
+		}
 	}
-	st = links2[2].Attrs()["value"]
-	return js, st, true
+	return "", "", false
 }
