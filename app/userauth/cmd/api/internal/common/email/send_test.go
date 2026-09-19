@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/smtp"
+	"strings"
 	"testing"
 
 	jordanemail "github.com/jordan-wright/email"
@@ -24,7 +25,7 @@ func TestSendUsesImplicitTLS(t *testing.T) {
 		Password: "secret",
 	}
 
-	expectedError := errors.New("stop before redis")
+	expectedError := errors.New("stop before delivery")
 	var capturedAddress string
 	var capturedConfig *tls.Config
 	sendWithTLS = func(message *jordanemail.Email, address string, auth smtp.Auth, config *tls.Config) error {
@@ -42,7 +43,7 @@ func TestSendUsesImplicitTLS(t *testing.T) {
 		return expectedError
 	}
 
-	err := Send("recipient@example.com", "set_password")
+	err := Send("recipient@example.com", "set_password", "ABC123")
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("expected send error %v, got %v", expectedError, err)
 	}
@@ -60,5 +61,59 @@ func TestSendUsesImplicitTLS(t *testing.T) {
 	}
 	if capturedConfig.InsecureSkipVerify {
 		t.Fatal("TLS certificate verification must remain enabled")
+	}
+}
+
+func TestSendEmbedsProvidedCode(t *testing.T) {
+	previousInfo := eInfo
+	previousSendWithTLS := sendWithTLS
+	t.Cleanup(func() {
+		eInfo = previousInfo
+		sendWithTLS = previousSendWithTLS
+	})
+
+	eInfo = EmailInfo{
+		Host:     "smtp.example.com",
+		Port:     "465",
+		UserName: "sender@example.com",
+		Password: "secret",
+	}
+
+	const randCode = "CODE42"
+	var capturedBody string
+	sendWithTLS = func(message *jordanemail.Email, address string, auth smtp.Auth, config *tls.Config) error {
+		capturedBody = string(message.HTML)
+		return nil
+	}
+
+	if err := Send("recipient@example.com", "set_password", randCode); err != nil {
+		t.Fatalf("unexpected send error: %v", err)
+	}
+	if !strings.Contains(capturedBody, randCode) {
+		t.Fatal("delivered email must contain the provided verification code")
+	}
+}
+
+func TestSendRejectsInvalidType(t *testing.T) {
+	previousInfo := eInfo
+	t.Cleanup(func() { eInfo = previousInfo })
+
+	eInfo = EmailInfo{Host: "smtp.example.com", Port: "465"}
+
+	err := Send("recipient@example.com", "unknown_type", "CODE42")
+	if !errors.Is(err, ErrInvalidEmailType) {
+		t.Fatalf("expected %v, got %v", ErrInvalidEmailType, err)
+	}
+}
+
+func TestSendRejectsMissingCode(t *testing.T) {
+	previousInfo := eInfo
+	t.Cleanup(func() { eInfo = previousInfo })
+
+	eInfo = EmailInfo{Host: "smtp.example.com", Port: "465"}
+
+	err := Send("recipient@example.com", "set_password", "")
+	if !errors.Is(err, ErrMissingEmailCode) {
+		t.Fatalf("expected %v, got %v", ErrMissingEmailCode, err)
 	}
 }
