@@ -2,7 +2,6 @@ package consumer
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/email"
@@ -13,7 +12,9 @@ import (
 )
 
 const (
-	maxSendAttempts = 3
+	// 一次初始投递，失败后再最多重试 maxSendRetries 次。
+	maxSendRetries  = 3
+	maxSendAttempts = maxSendRetries + 1
 	sendRetryDelay  = 500 * time.Millisecond
 )
 
@@ -61,7 +62,7 @@ func handle(v string) {
 		if lastErr == nil {
 			return
 		}
-		if errors.Is(lastErr, email.ErrInvalidEmailType) || errors.Is(lastErr, email.ErrMissingEmailCode) {
+		if email.IsPermanent(lastErr) {
 			logx.Errorf("drop undeliverable email to %s: %v", msg.Email, lastErr)
 			return
 		}

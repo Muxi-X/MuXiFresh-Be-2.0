@@ -1,6 +1,7 @@
 package code
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -40,6 +41,45 @@ func TestVerifyEmailCodeConsumesOnce(t *testing.T) {
 	}
 	if VerifyEmailCode(prefix, email, "ABCDEF") {
 		t.Fatal("code must not be reusable after a successful verify")
+	}
+}
+
+func TestVerifyEmailCodeConcurrentlyConsumedOnce(t *testing.T) {
+	withMiniredis(t)
+
+	const (
+		prefix = "set_password"
+		email  = "user@example.com"
+	)
+	if err := SetEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("set code: %v", err)
+	}
+
+	const goroutines = 8
+	start := make(chan struct{})
+	results := make(chan bool, goroutines)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			results <- VerifyEmailCode(prefix, email, "ABCDEF")
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(results)
+
+	succeeded := 0
+	for ok := range results {
+		if ok {
+			succeeded++
+		}
+	}
+	if succeeded != 1 {
+		t.Fatalf("exactly one concurrent verify may succeed, got %d", succeeded)
 	}
 }
 

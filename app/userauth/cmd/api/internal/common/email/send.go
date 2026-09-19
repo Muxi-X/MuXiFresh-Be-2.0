@@ -2,6 +2,7 @@ package email
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/smtp"
 	"net/textproto"
@@ -29,6 +30,23 @@ var ErrInvalidEmailType = fmt.Errorf("invalid email type")
 // ErrMissingEmailCode marks a message without a code, e.g. one produced by an
 // older API version still in the Kafka backlog during a rolling deploy.
 var ErrMissingEmailCode = fmt.Errorf("missing email code")
+
+// IsPermanent reports whether err can never be delivered by retrying: bad
+// payloads, plus any 5xx SMTP reply (unknown recipient, policy rejection),
+// which the library returns as *textproto.Error. 4xx replies and
+// transport/TLS errors stay retryable.
+func IsPermanent(err error) bool {
+	if errors.Is(err, ErrInvalidEmailType) || errors.Is(err, ErrMissingEmailCode) {
+		return true
+	}
+
+	var protoErr *textproto.Error
+	if errors.As(err, &protoErr) {
+		return protoErr.Code >= 500 && protoErr.Code < 600
+	}
+
+	return false
+}
 
 var sendWithTLS = func(message *email.Email, address string, auth smtp.Auth, config *tls.Config) error {
 	return message.SendWithTLS(address, auth, config)

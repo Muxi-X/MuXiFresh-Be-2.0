@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"errors"
+	"net/textproto"
 	"testing"
 	"time"
 
@@ -71,6 +72,20 @@ func TestHandleDoesNotRetryPermanentFailure(t *testing.T) {
 
 	if attempts != 1 {
 		t.Fatalf("permanent failure must not be retried, got %d attempts", attempts)
+	}
+}
+
+func TestHandleDoesNotRetrySMTP5xx(t *testing.T) {
+	attempts := 0
+	withStubbedSend(t, func(mailbox, typ, code string) error {
+		attempts++
+		return &textproto.Error{Code: 550, Msg: "mailbox unavailable"}
+	})
+
+	handle(`{"email":"a@b.com","type":"set_password","rand_code":"ABC123"}`)
+
+	if attempts != 1 {
+		t.Fatalf("SMTP 5xx must not be retried, got %d attempts", attempts)
 	}
 }
 

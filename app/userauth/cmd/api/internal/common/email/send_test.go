@@ -3,7 +3,9 @@ package email
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/smtp"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -115,5 +117,30 @@ func TestSendRejectsMissingCode(t *testing.T) {
 	err := Send("recipient@example.com", "set_password", "")
 	if !errors.Is(err, ErrMissingEmailCode) {
 		t.Fatalf("expected %v, got %v", ErrMissingEmailCode, err)
+	}
+}
+
+func TestIsPermanent(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid type", ErrInvalidEmailType, true},
+		{"missing code", ErrMissingEmailCode, true},
+		{"smtp 550 recipient", &textproto.Error{Code: 550, Msg: "mailbox unavailable"}, true},
+		{"smtp 550 wrapped", fmt.Errorf("send: %w", &textproto.Error{Code: 550, Msg: "mailbox unavailable"}), true},
+		{"smtp 552 policy", &textproto.Error{Code: 552, Msg: "over quota"}, true},
+		{"smtp 421 transient", &textproto.Error{Code: 421, Msg: "service unavailable"}, false},
+		{"smtp 451 transient", &textproto.Error{Code: 451, Msg: "try later"}, false},
+		{"transport error", errors.New("connection reset by peer"), false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsPermanent(tc.err); got != tc.want {
+				t.Fatalf("IsPermanent(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
 	}
 }
