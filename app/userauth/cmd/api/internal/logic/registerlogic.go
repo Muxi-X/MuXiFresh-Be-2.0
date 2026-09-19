@@ -43,6 +43,7 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 		Password: tool.EncryptedPasswordMD5(req.Password),
 	})
 	if err != nil {
+		l.restoreCode(req.Email, req.VerifyCode)
 		return nil, err
 	}
 	//gen token
@@ -54,6 +55,14 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 	return &types.RegisterResp{
 		Token: tokenStr,
 	}, nil
+}
+
+// restoreCode puts the consumed code back when the follow-up step failed, so a
+// retry with the same code still works.
+func (l *RegisterLogic) restoreCode(email, verifyCode string) {
+	if err := code.RestoreEmailCode(globalKey.Register, email, verifyCode); err != nil {
+		l.Errorf("restore register code for %s failed: %v", email, err)
+	}
 }
 
 // @secretKey: JWT 加解密密钥
