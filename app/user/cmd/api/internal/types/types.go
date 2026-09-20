@@ -71,3 +71,17 @@ type One struct {
 type GetAdminListResp struct {
 	List []One `json:"list"`
 }
+
+type PreviewUserByEmailReq struct {
+	Authorization string `header:"Authorization"`
+	Email         string `form:"email"`
+}
+
+type PreviewUserByEmailResp struct {
+	UserId   string `json:"user_id"`
+	Avatar   string `json:"avatar"`
+	NickName string `json:"nickname"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	UserType string `json:"user_type"`
+}

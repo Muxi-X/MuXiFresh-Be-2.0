@@ -46,3 +46,8 @@ func (s *UserClientServer) GetUserType(ctx context.Context, in *pb.GetUserTypeRe
 	l := logic.NewGetUserTypeLogic(ctx, s.svcCtx)
 	return l.GetUserType(in)
 }
+
+func (s *UserClientServer) GetUserInfoByEmail(ctx context.Context, in *pb.GetUserInfoByEmailReq) (*pb.GetUserInfoByEmailResp, error) {
+	l := logic.NewGetUserInfoByEmailLogic(ctx, s.svcCtx)
+	return l.GetUserInfoByEmail(in)
+}

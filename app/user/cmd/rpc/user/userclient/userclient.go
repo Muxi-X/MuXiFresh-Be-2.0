@@ -25,12 +25,16 @@ type (
 	SetUserTypeReq   = pb.SetUserTypeReq
 	SetUserTypeResp  = pb.SetUserTypeResp
 
+	GetUserInfoByEmailReq  = pb.GetUserInfoByEmailReq
+	GetUserInfoByEmailResp = pb.GetUserInfoByEmailResp
+
 	UserClient interface {
 		GetUserInfo(ctx context.Context, in *GetUserInfoReq, opts ...grpc.CallOption) (*GetUserInfoResp, error)
 		SetUserInfo(ctx context.Context, in *SetUserInfoReq, opts ...grpc.CallOption) (*SetUserInfoResp, error)
 		SetUserType(ctx context.Context, in *SetUserTypeReq, opts ...grpc.CallOption) (*SetUserTypeResp, error)
 		GetAdminList(ctx context.Context, in *GetAdminListReq, opts ...grpc.CallOption) (*GetAdminListResp, error)
 		GetUserType(ctx context.Context, in *GetUserTypeReq, opts ...grpc.CallOption) (*GetUserTypeResp, error)
+		GetUserInfoByEmail(ctx context.Context, in *GetUserInfoByEmailReq, opts ...grpc.CallOption) (*GetUserInfoByEmailResp, error)
 	}
 
 	defaultUserClient struct {
@@ -67,4 +71,9 @@ func (m *defaultUserClient) GetAdminList(ctx context.Context, in *GetAdminListRe
 func (m *defaultUserClient) GetUserType(ctx context.Context, in *GetUserTypeReq, opts ...grpc.CallOption) (*GetUserTypeResp, error) {
 	client := pb.NewUserClientClient(m.cli.Conn())
 	return client.GetUserType(ctx, in, opts...)
+}
+
+func (m *defaultUserClient) GetUserInfoByEmail(ctx context.Context, in *GetUserInfoByEmailReq, opts ...grpc.CallOption) (*GetUserInfoByEmailResp, error) {
+	client := pb.NewUserClientClient(m.cli.Conn())
+	return client.GetUserInfoByEmail(ctx, in, opts...)
 }

@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	UserClient_GetUserInfo_FullMethodName  = "/user.userClient/GetUserInfo"
-	UserClient_SetUserInfo_FullMethodName  = "/user.userClient/SetUserInfo"
-	UserClient_SetUserType_FullMethodName  = "/user.userClient/SetUserType"
-	UserClient_GetAdminList_FullMethodName = "/user.userClient/GetAdminList"
-	UserClient_GetUserType_FullMethodName  = "/user.userClient/GetUserType"
+	UserClient_GetUserInfo_FullMethodName        = "/user.userClient/GetUserInfo"
+	UserClient_SetUserInfo_FullMethodName        = "/user.userClient/SetUserInfo"
+	UserClient_SetUserType_FullMethodName        = "/user.userClient/SetUserType"
+	UserClient_GetAdminList_FullMethodName       = "/user.userClient/GetAdminList"
+	UserClient_GetUserType_FullMethodName        = "/user.userClient/GetUserType"
+	UserClient_GetUserInfoByEmail_FullMethodName = "/user.userClient/GetUserInfoByEmail"
 )
 
 // UserClientClient is the client API for UserClient service.
@@ -35,6 +36,7 @@ type UserClientClient interface {
 	SetUserType(ctx context.Context, in *SetUserTypeReq, opts ...grpc.CallOption) (*SetUserTypeResp, error)
 	GetAdminList(ctx context.Context, in *GetAdminListReq, opts ...grpc.CallOption) (*GetAdminListResp, error)
 	GetUserType(ctx context.Context, in *GetUserTypeReq, opts ...grpc.CallOption) (*GetUserTypeResp, error)
+	GetUserInfoByEmail(ctx context.Context, in *GetUserInfoByEmailReq, opts ...grpc.CallOption) (*GetUserInfoByEmailResp, error)
 }
 
 type userClientClient struct {
@@ -90,6 +92,15 @@ func (c *userClientClient) GetUserType(ctx context.Context, in *GetUserTypeReq, 
 	return out, nil
 }
 
+func (c *userClientClient) GetUserInfoByEmail(ctx context.Context, in *GetUserInfoByEmailReq, opts ...grpc.CallOption) (*GetUserInfoByEmailResp, error) {
+	out := new(GetUserInfoByEmailResp)
+	err := c.cc.Invoke(ctx, UserClient_GetUserInfoByEmail_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserClientServer is the server API for UserClient service.
 // All implementations must embed UnimplementedUserClientServer
 // for forward compatibility
@@ -99,6 +110,7 @@ type UserClientServer interface {
 	SetUserType(context.Context, *SetUserTypeReq) (*SetUserTypeResp, error)
 	GetAdminList(context.Context, *GetAdminListReq) (*GetAdminListResp, error)
 	GetUserType(context.Context, *GetUserTypeReq) (*GetUserTypeResp, error)
+	GetUserInfoByEmail(context.Context, *GetUserInfoByEmailReq) (*GetUserInfoByEmailResp, error)
 	mustEmbedUnimplementedUserClientServer()
 }
 
@@ -120,6 +132,9 @@ func (UnimplementedUserClientServer) GetAdminList(context.Context, *GetAdminList
 }
 func (UnimplementedUserClientServer) GetUserType(context.Context, *GetUserTypeReq) (*GetUserTypeResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserType not implemented")
+}
+func (UnimplementedUserClientServer) GetUserInfoByEmail(context.Context, *GetUserInfoByEmailReq) (*GetUserInfoByEmailResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserInfoByEmail not implemented")
 }
 func (UnimplementedUserClientServer) mustEmbedUnimplementedUserClientServer() {}
 
@@ -224,6 +239,24 @@ func _UserClient_GetUserType_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserClient_GetUserInfoByEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserInfoByEmailReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserClientServer).GetUserInfoByEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserClient_GetUserInfoByEmail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserClientServer).GetUserInfoByEmail(ctx, req.(*GetUserInfoByEmailReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserClient_ServiceDesc is the grpc.ServiceDesc for UserClient service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -250,6 +283,10 @@ var UserClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserType",
 			Handler:    _UserClient_GetUserType_Handler,
+		},
+		{
+			MethodName: "GetUserInfoByEmail",
+			Handler:    _UserClient_GetUserInfoByEmail_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
