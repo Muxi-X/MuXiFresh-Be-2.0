@@ -29,21 +29,39 @@ func NewAuthSetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *A
 	}
 }
 
+// Overridable seams: the token signing and the code store are wired through
+// package vars so the failure path stays testable without touching Redis.
+var (
+	signAuthSetPasswordToken = getJwtToken
+	verifySetPasswordCode    = code.VerifyEmailCode
+	restoreSetPasswordCode   = code.RestoreEmailCode
+)
+
 func (l *AuthSetPasswordLogic) AuthSetPassword(req *types.AuthSetPasswordReq) (resp *types.AuthSetPasswordResp, err error) {
 
-	if ok := code.VerifyEmailCode(globalKey.SetPassword, req.Email, req.VerifyCode); !ok {
+	if ok := verifySetPasswordCode(globalKey.SetPassword, req.Email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")
 	}
 	//gen auth token
-	AuthSetPasswordToken, err := l.getJwtToken(l.svcCtx.Config.JwtAuthChPass.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuthChPass.AccessExpire, req.Email)
+	AuthSetPasswordToken, err := signAuthSetPasswordToken(l.svcCtx.Config.JwtAuthChPass.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuthChPass.AccessExpire, req.Email)
 	if err != nil {
+		l.restoreCode(req.Email, req.VerifyCode)
 		return nil, err
 	}
 	return &types.AuthSetPasswordResp{
 		AuthSetPasswordToken: AuthSetPasswordToken,
 	}, nil
 }
-func (l *AuthSetPasswordLogic) getJwtToken(secretKey string, iat, seconds int64, email string) (string, error) {
+
+// restoreCode puts the consumed code back when the follow-up step failed, so a
+// retry with the same code still works.
+func (l *AuthSetPasswordLogic) restoreCode(email, verifyCode string) {
+	if err := restoreSetPasswordCode(globalKey.SetPassword, email, verifyCode); err != nil {
+		l.Errorf("restore set-password code for %s failed: %v", email, err)
+	}
+}
+
+func getJwtToken(secretKey string, iat, seconds int64, email string) (string, error) {
 	claims := make(jwt.MapClaims)
 	claims["exp"] = iat + seconds
 	claims["iat"] = iat

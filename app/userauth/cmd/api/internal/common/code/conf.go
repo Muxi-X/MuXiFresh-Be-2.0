@@ -27,4 +27,8 @@ func Load(c config.Config, ctx *svc.ServiceContext) {
 	copier.Copy(&conf, c.CaptchaConf)
 	redisClient = ctx.RedisClient
 	EmailCodeExpired = c.EmailCodeExpired
+	if EmailCodeExpired <= 0 {
+		// 缺失时验证码会永不过期（或不合法），必须 fail fast。
+		panic("EmailCodeExpired must be positive")
+	}
 }

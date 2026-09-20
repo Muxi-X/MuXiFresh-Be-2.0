@@ -31,9 +31,15 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 	}
 }
 
+// Overridable seams so the failure/restore path stays testable without Redis.
+var (
+	verifyRegisterCode  = code.VerifyEmailCode
+	restoreRegisterCode = code.RestoreEmailCode
+)
+
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
 	//verify code
-	if ok := code.VerifyEmailCode(globalKey.Register, req.Email, req.VerifyCode); !ok {
+	if ok := verifyRegisterCode(globalKey.Register, req.Email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")
 	}
 
@@ -43,6 +49,7 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 		Password: tool.EncryptedPasswordMD5(req.Password),
 	})
 	if err != nil {
+		l.restoreCode(req.Email, req.VerifyCode)
 		return nil, err
 	}
 	//gen token
@@ -54,6 +61,14 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 	return &types.RegisterResp{
 		Token: tokenStr,
 	}, nil
+}
+
+// restoreCode puts the consumed code back when the follow-up step failed, so a
+// retry with the same code still works.
+func (l *RegisterLogic) restoreCode(email, verifyCode string) {
+	if err := restoreRegisterCode(globalKey.Register, email, verifyCode); err != nil {
+		l.Errorf("restore register code for %s failed: %v", email, err)
+	}
 }
 
 // @secretKey: JWT 加解密密钥
