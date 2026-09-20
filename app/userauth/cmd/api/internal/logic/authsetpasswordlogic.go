@@ -29,13 +29,17 @@ func NewAuthSetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *A
 	}
 }
 
-// signAuthSetPasswordToken is overridable so tests can exercise the failure
-// path, where the consumed verification code must be restored.
-var signAuthSetPasswordToken = getJwtToken
+// Overridable seams: the token signing and the code store are wired through
+// package vars so the failure path stays testable without touching Redis.
+var (
+	signAuthSetPasswordToken = getJwtToken
+	verifySetPasswordCode    = code.VerifyEmailCode
+	restoreSetPasswordCode   = code.RestoreEmailCode
+)
 
 func (l *AuthSetPasswordLogic) AuthSetPassword(req *types.AuthSetPasswordReq) (resp *types.AuthSetPasswordResp, err error) {
 
-	if ok := code.VerifyEmailCode(globalKey.SetPassword, req.Email, req.VerifyCode); !ok {
+	if ok := verifySetPasswordCode(globalKey.SetPassword, req.Email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")
 	}
 	//gen auth token
@@ -52,7 +56,7 @@ func (l *AuthSetPasswordLogic) AuthSetPassword(req *types.AuthSetPasswordReq) (r
 // restoreCode puts the consumed code back when the follow-up step failed, so a
 // retry with the same code still works.
 func (l *AuthSetPasswordLogic) restoreCode(email, verifyCode string) {
-	if err := code.RestoreEmailCode(globalKey.SetPassword, email, verifyCode); err != nil {
+	if err := restoreSetPasswordCode(globalKey.SetPassword, email, verifyCode); err != nil {
 		l.Errorf("restore set-password code for %s failed: %v", email, err)
 	}
 }

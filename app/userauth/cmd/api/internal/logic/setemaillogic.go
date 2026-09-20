@@ -28,9 +28,15 @@ func NewSetEmailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetEmail
 	}
 }
 
+// Overridable seams so the failure/restore path stays testable without Redis.
+var (
+	verifySetEmailCode  = code.VerifyEmailCode
+	restoreSetEmailCode = code.RestoreEmailCode
+)
+
 func (l *SetEmailLogic) SetEmail(req *types.SetEmailReq) (resp *types.SetEmailResp, err error) {
 
-	if ok := code.VerifyEmailCode(globalKey.SetEmail, req.Email, req.VerifyCode); !ok {
+	if ok := verifySetEmailCode(globalKey.SetEmail, req.Email, req.VerifyCode); !ok {
 		return nil, errors.New("verify code failed")
 	}
 	SetEmailResp, err := l.svcCtx.AccountCenterClient.SetEmail(l.ctx, &accountcenterclient.SetEmailReq{
@@ -50,7 +56,7 @@ func (l *SetEmailLogic) SetEmail(req *types.SetEmailReq) (resp *types.SetEmailRe
 // restoreCode puts the consumed code back when the follow-up step failed, so a
 // retry with the same code still works.
 func (l *SetEmailLogic) restoreCode(email, verifyCode string) {
-	if err := code.RestoreEmailCode(globalKey.SetEmail, email, verifyCode); err != nil {
+	if err := restoreSetEmailCode(globalKey.SetEmail, email, verifyCode); err != nil {
 		l.Errorf("restore set-email code for %s failed: %v", email, err)
 	}
 }

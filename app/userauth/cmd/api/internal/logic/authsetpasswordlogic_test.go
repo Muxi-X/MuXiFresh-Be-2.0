@@ -5,61 +5,97 @@ import (
 	"errors"
 	"testing"
 
-	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/code"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/config"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/types"
 	"MuXiFresh-Be-2.0/common/globalKey"
-
-	"github.com/alicebob/miniredis/v2"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
-func newAuthSetPasswordLogic(t *testing.T) *AuthSetPasswordLogic {
+func stubSetPasswordSeams(t *testing.T, verify bool) *[]restoreCall {
 	t.Helper()
 
-	server := miniredis.RunT(t)
-	cfg := config.Config{
-		EmailCodeExpired: 10,
-		CaptchaConf:      &config.CaptchaConf{},
+	previousVerify := verifySetPasswordCode
+	previousRestore := restoreSetPasswordCode
+	previousSign := signAuthSetPasswordToken
+
+	restores := &[]restoreCall{}
+	verifySetPasswordCode = func(prefix, key, value string) bool { return verify }
+	restoreSetPasswordCode = func(prefix, key, value string) error {
+		*restores = append(*restores, restoreCall{prefix: prefix, key: key, value: value})
+		return nil
 	}
+	// 默认签发成功，个别用例再覆盖。
+	signAuthSetPasswordToken = func(secretKey string, iat, seconds int64, email string) (string, error) {
+		return "signed-token", nil
+	}
+
+	t.Cleanup(func() {
+		verifySetPasswordCode = previousVerify
+		restoreSetPasswordCode = previousRestore
+		signAuthSetPasswordToken = previousSign
+	})
+
+	return restores
+}
+
+type restoreCall struct {
+	prefix string
+	key    string
+	value  string
+}
+
+func newAuthSetPasswordLogic() *AuthSetPasswordLogic {
+	cfg := config.Config{}
 	cfg.JwtAuthChPass.AccessSecret = "chpass-secret"
 	cfg.JwtAuthChPass.AccessExpire = 3600
 
-	ctx := &svc.ServiceContext{
-		Config:      cfg,
-		RedisClient: redis.MustNewRedis(redis.RedisConf{Host: server.Addr(), Type: "node"}),
-	}
-	code.Load(cfg, ctx)
-
-	return NewAuthSetPasswordLogic(context.Background(), ctx)
+	return NewAuthSetPasswordLogic(context.Background(), &svc.ServiceContext{Config: cfg})
 }
 
 func TestAuthSetPasswordRestoresCodeWhenSigningFails(t *testing.T) {
-	l := newAuthSetPasswordLogic(t)
-
-	const email = "user@example.com"
-	if err := code.SetEmailCode(globalKey.SetPassword, email, "ABCDEF"); err != nil {
-		t.Fatalf("set code: %v", err)
-	}
-
-	previousSign := signAuthSetPasswordToken
+	restores := stubSetPasswordSeams(t, true)
 	signAuthSetPasswordToken = func(secretKey string, iat, seconds int64, email string) (string, error) {
 		return "", errors.New("sign failed")
 	}
-	t.Cleanup(func() { signAuthSetPasswordToken = previousSign })
 
-	if _, err := l.AuthSetPassword(&types.AuthSetPasswordReq{Email: email, VerifyCode: "ABCDEF"}); err == nil {
+	l := newAuthSetPasswordLogic()
+	if _, err := l.AuthSetPassword(&types.AuthSetPasswordReq{Email: "user@example.com", VerifyCode: "ABCDEF"}); err == nil {
 		t.Fatal("expected signing failure to surface as an error")
 	}
 
-	// 签发失败后验证码必须已恢复，用户可以拿同一个码重试。
-	signAuthSetPasswordToken = previousSign
-	resp, err := l.AuthSetPassword(&types.AuthSetPasswordReq{Email: email, VerifyCode: "ABCDEF"})
+	if len(*restores) != 1 {
+		t.Fatalf("expected the consumed code to be restored once, got %d", len(*restores))
+	}
+	got := (*restores)[0]
+	if got.prefix != globalKey.SetPassword || got.key != "user@example.com" || got.value != "ABCDEF" {
+		t.Fatalf("unexpected restore call: %+v", got)
+	}
+}
+
+func TestAuthSetPasswordDoesNotRestoreOnSuccess(t *testing.T) {
+	restores := stubSetPasswordSeams(t, true)
+
+	l := newAuthSetPasswordLogic()
+	resp, err := l.AuthSetPassword(&types.AuthSetPasswordReq{Email: "user@example.com", VerifyCode: "ABCDEF"})
 	if err != nil {
-		t.Fatalf("retry with the same code must succeed, got %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if resp.AuthSetPasswordToken == "" {
 		t.Fatal("expected a non-empty auth set password token")
+	}
+	if len(*restores) != 0 {
+		t.Fatalf("a successful flow must not restore the code, got %d calls", len(*restores))
+	}
+}
+
+func TestAuthSetPasswordRejectsWrongCodeWithoutRestore(t *testing.T) {
+	restores := stubSetPasswordSeams(t, false)
+
+	l := newAuthSetPasswordLogic()
+	if _, err := l.AuthSetPassword(&types.AuthSetPasswordReq{Email: "user@example.com", VerifyCode: "WRONG1"}); err == nil {
+		t.Fatal("expected an invalid code to be rejected")
+	}
+	if len(*restores) != 0 {
+		t.Fatalf("a rejected code must not trigger restore, got %d calls", len(*restores))
 	}
 }
