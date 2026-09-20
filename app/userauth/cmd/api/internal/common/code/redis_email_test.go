@@ -3,6 +3,7 @@ package code
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -316,5 +317,62 @@ func TestSetEmailCodeClearsUsedMarker(t *testing.T) {
 	}
 	if VerifyEmailCode(prefix, email, "OLD123") {
 		t.Fatal("a new code must invalidate the previous used marker")
+	}
+}
+
+func TestRestoreEmailCodeKeepsOriginalDeadline(t *testing.T) {
+	server := withMiniredis(t)
+
+	const (
+		prefix = "set_password"
+		email  = "user@example.com"
+	)
+	if err := SetEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("set code: %v", err)
+	}
+
+	// 让码临近过期（总时长 10 分钟，推进 9 分钟，仅剩 1 分钟）。
+	server.FastForward(9 * time.Minute)
+	if !VerifyEmailCode(prefix, email, "ABCDEF") {
+		t.Fatal("setup: code should still verify before expiry")
+	}
+	if err := RestoreEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !VerifyEmailCode(prefix, email, "ABCDEF") {
+		t.Fatal("restored code must verify once before the original deadline")
+	}
+
+	// 越过原始截止时间后，恢复出来的码必须已过期，不能续期存活。
+	server.FastForward(2 * time.Minute)
+	if err := RestoreEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if VerifyEmailCode(prefix, email, "ABCDEF") {
+		t.Fatal("restored code must not outlive its original deadline")
+	}
+}
+
+func TestRestoreEmailCodeFailsAfterOriginalDeadline(t *testing.T) {
+	server := withMiniredis(t)
+
+	const (
+		prefix = "set_password"
+		email  = "user@example.com"
+	)
+	if err := SetEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("set code: %v", err)
+	}
+	if !VerifyEmailCode(prefix, email, "ABCDEF") {
+		t.Fatal("setup: code should verify once")
+	}
+
+	// 消费后已过原始截止时间，恢复不得复活该码。
+	server.FastForward(11 * time.Minute)
+	if err := RestoreEmailCode(prefix, email, "ABCDEF"); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if VerifyEmailCode(prefix, email, "ABCDEF") {
+		t.Fatal("an expired code must never be revived")
 	}
 }
