@@ -58,10 +58,24 @@ message GetUserTypeReq {
 message GetUserTypeResp {
   string UserType =1;
 }
+
+message GetUserInfoByEmailReq {
+  string Email = 1;
+}
+message GetUserInfoByEmailResp {
+  string UserId = 1;
+  string Avatar = 2;
+  string NickName = 3;
+  string Name = 4;
+  string Email = 5;
+  string UserType = 6;
+}
+
 service userClient {
   rpc GetUserInfo(GetUserInfoReq) returns (GetUserInfoResp);
   rpc SetUserInfo(SetUserInfoReq)returns (SetUserInfoResp);
   rpc SetUserType(SetUserTypeReq)returns(SetUserTypeResp);
   rpc GetAdminList(GetAdminListReq)returns(GetAdminListResp);
   rpc GetUserType(GetUserTypeReq) returns(GetUserTypeResp);
+  rpc GetUserInfoByEmail(GetUserInfoByEmailReq) returns (GetUserInfoByEmailResp);
 }

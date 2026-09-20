@@ -76,6 +76,19 @@ type One {
 type GetAdminListResp {
 	List []One `json:"list"`
 }
+//按邮箱预览用户信息（添加成员前确认）
+type PreviewUserByEmailReq {
+	Authorization string `header:"Authorization"`
+	Email         string `form:"email"`
+}
+type PreviewUserByEmailResp {
+	UserId   string `json:"user_id"`
+	Avatar   string `json:"avatar"`
+	NickName string `json:"nickname"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	UserType string `json:"user_type"`
+}
 @server(
 	jwt: JwtAuth
 	prefix: /api/v2
@@ -90,6 +103,9 @@ service user {
 	@doc"获取指定用户信息"
 	@handler GetUserInfo
 	get /users/info/:id (GetUserInfoReq) returns (GetUserInfoResp)
+	@doc"按邮箱预览用户信息（添加成员前确认）"
+	@handler PreviewUserByEmail
+	get /users/preview (PreviewUserByEmailReq) returns (PreviewUserByEmailResp)
 	@doc"修改用户信息"
 	@handler SetUserInfo
 	post /users (SetUserInfoReq) returns (SetUserInfoResp)

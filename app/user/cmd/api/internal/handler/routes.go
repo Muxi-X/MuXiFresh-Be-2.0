@@ -28,6 +28,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: GetUserInfoHandler(serverCtx),
 			},
 			{
+				Method:  http.MethodGet,
+				Path:    "/users/preview",
+				Handler: PreviewUserByEmailHandler(serverCtx),
+			},
+			{
 				Method:  http.MethodPost,
 				Path:    "/users",
 				Handler: SetUserInfoHandler(serverCtx),

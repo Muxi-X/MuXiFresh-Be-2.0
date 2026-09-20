@@ -19,6 +19,7 @@ type (
 		userInfoModel
 		FindByStudentID(ctx context.Context, studentID string) (*UserInfo, error)
 		FindByUserIds(ctx context.Context, userIds []string) ([]*UserInfo, error)
+		FindByEmail(ctx context.Context, email string) (*UserInfo, error)
 		UpdateByEmail(ctx context.Context, data *UserInfo) (*mongo.UpdateResult, error)
 		FindByUserType(ctx context.Context, userType string) ([]*UserInfo, error)
 	}
@@ -40,6 +41,20 @@ func (m *defaultUserInfoModel) FindByStudentID(ctx context.Context, studentID st
 	var data UserInfo
 
 	err := m.conn.FindOne(ctx, &data, bson.M{"student_id": studentID})
+	switch err {
+	case nil:
+		return &data, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+func (m *defaultUserInfoModel) FindByEmail(ctx context.Context, email string) (*UserInfo, error) {
+	var data UserInfo
+
+	err := m.conn.FindOne(ctx, &data, bson.M{"email": email})
 	switch err {
 	case nil:
 		return &data, nil
