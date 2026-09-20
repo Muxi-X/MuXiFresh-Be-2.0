@@ -57,7 +57,7 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 		startTime = time.Date(req.Year, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime = time.Date(req.Year, time.December, 31, 23, 59, 59, 999999999, time.UTC)
 	}
-	rows, err := buildReviewRows(l.ctx, l.svcCtx, req.Group, req.School, req.Grade, req.Status, startTime, endTime)
+	rows, err := buildReviewRows(l.ctx, l.svcCtx, groupFilter(req.Group), req.School, req.Grade, req.Status, startTime, endTime)
 	if err != nil {
 		return nil, "", err
 	}
@@ -73,9 +73,9 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 		{"Operation", "运营组"},
 	}
 
-	// 按组拆 sheet：req.Group 为空导出所有组（空组也建表头），否则仅该组
+	// 按组拆 sheet：req.Group 为空或全量哨兵时导出所有组（空组也建表头），否则仅该组
 	targets := groupNames
-	if req.Group != "" {
+	if req.Group != "" && !isGroupAll(req.Group) {
 		targets = nil
 		for _, g := range groupNames {
 			if g.en == req.Group {

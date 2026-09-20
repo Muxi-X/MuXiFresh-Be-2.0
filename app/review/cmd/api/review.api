@@ -11,11 +11,12 @@ info (
 type GetReviewReq {
 	Authorization string `header:"Authorization"`
 	Year          int    `json:"year"`
-	Group         string `json:"group,options=[Product,Design,Frontend,Backend,Android,Operation]"`
+	Group         string `json:"group,options=[All,Product,Design,Frontend,Backend,Android,Operation]"`
 	Season        string `json:"season,options=[autumn,spring]"`
 	Grade         string `json:"grade,optional"`
 	School        string `json:"school,optional"`
 	Status        string `json:"status,optional"`
+	Name          string `json:"name,optional"`
 	Page          int64  `json:"page,optional,default=1"`
 	PageSize      int64  `json:"page_size,optional"`
 }
@@ -60,7 +61,7 @@ type ExportReviewExcelReq {
 	Authorization string `header:"Authorization"`
 	Year          int    `json:"year"`
 	Season        string `json:"season,options=[autumn,spring]"`
-	Group         string `json:"group,optional,options=[Product,Design,Frontend,Backend,Android,Operation]"` // 如果为空，导出所有组
+	Group         string `json:"group,optional,options=[All,Product,Design,Frontend,Backend,Android,Operation]"` // 为空或 All 时导出所有组
 	Grade         string `json:"grade,optional"`
 	School        string `json:"school,optional"`
 	Status        string `json:"status,optional"`

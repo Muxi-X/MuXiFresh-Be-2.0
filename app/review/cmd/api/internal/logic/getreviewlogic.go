@@ -47,10 +47,12 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 		endTime = time.Date(req.Year, time.June, 31, 23, 59, 59, 999999999, time.UTC)
 	}
 
-	rows, err := buildReviewRows(l.ctx, l.svcCtx, req.Group, req.School, req.Grade, req.Status, startTime, endTime)
+	rows, err := buildReviewRows(l.ctx, l.svcCtx, groupFilter(req.Group), req.School, req.Grade, req.Status, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
+	// 姓名筛选在分页之前，保证 total 为筛选后的总数
+	rows = filterByName(rows, req.Name)
 
 	total := int64(len(rows))
 	// 传了 page_size 才分页；不传则全量返回，兼容旧前端
