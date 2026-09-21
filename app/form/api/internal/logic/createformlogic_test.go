@@ -301,6 +301,98 @@ func TestCreateForm_RollbackOnScheduleFailure(t *testing.T) {
 	}
 }
 
+// 守卫之后管理员改状态导致 upsert 命中唯一索引：读回是录取态则拒绝并回滚
+func TestCreateForm_AdmittedDuringRaceRejected(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	deletedID := ""
+	dupErr := mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}}
+	// 第 1 次读是入口守卫（此时尚未录取，放行）；之后读回时管理员已置为已转正
+	reads := 0
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			findByCycleFn: func(ctx context.Context, userId, cycle string) (*formModel.EntryForm, error) {
+				return nil, formModel.ErrNotFound
+			},
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				deletedID = id
+				return 1, nil
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return nil, dupErr
+			},
+			findByUser: func(ctx context.Context, userId string) (*scheduleModel.Schedule, error) {
+				reads++
+				if reads == 1 {
+					return &scheduleModel.Schedule{ID: primitive.NewObjectID(), UserID: userID, AdmissionStatus: globalKey.Registered}, nil
+				}
+				return &scheduleModel.Schedule{ID: primitive.NewObjectID(), UserID: userID, AdmissionStatus: globalKey.Formal}, nil
+			},
+		},
+		UserInfoModelClient: &fakeUserInfoUpdateModel{
+			findFn: func(ctx context.Context, id string) (*usermodel.UserInfo, error) {
+				return &usermodel.UserInfo{ID: userID}, nil
+			},
+		},
+	}
+	l := NewCreateFormLogic(createCtx(userID.Hex()), svcCtx)
+	_, err := l.CreateForm(newCreateReq())
+	if err == nil || err.Error() != "已是正式成员，无需重复报名" {
+		t.Fatalf("admitted-during-race should be rejected, got %v", err)
+	}
+	if deletedID != formID.Hex() {
+		t.Fatalf("newly created form should be rolled back, got %q", deletedID)
+	}
+}
+
+// 并发插入导致 upsert 命中唯一索引：读回非录取态则放行（不误判为已录取）
+func TestCreateForm_DuplicateKeyFromConcurrencyAllowed(t *testing.T) {
+	userID := primitive.NewObjectID()
+	formID := primitive.NewObjectID()
+	sid := primitive.NewObjectID()
+	dupErr := mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}}
+	deleted := false
+	svcCtx := &svc.ServiceContext{
+		FormClient: &fakeCreateFormClient{formID: formID.Hex()},
+		EntryFormModel: &fakeEntryFormModel{
+			findByCycleFn: func(ctx context.Context, userId, cycle string) (*formModel.EntryForm, error) {
+				return nil, formModel.ErrNotFound
+			},
+			deleteFn: func(ctx context.Context, id string) (int64, error) {
+				deleted = true
+				return 1, nil
+			},
+		},
+		ScheduleModel: &fakeScheduleModel{
+			upsertFn: func(ctx context.Context, data *scheduleModel.Schedule) (*mongo.UpdateResult, error) {
+				return nil, dupErr
+			},
+			// 读回是并发请求刚插入的"已报名"，不是录取态
+			findByUser: func(ctx context.Context, userId string) (*scheduleModel.Schedule, error) {
+				return &scheduleModel.Schedule{ID: sid, UserID: userID, AdmissionStatus: globalKey.Registered}, nil
+			},
+		},
+		UserInfoModelClient: &fakeUserInfoUpdateModel{
+			updateFn: func(ctx context.Context, data *usermodel.UserInfo) (*mongo.UpdateResult, error) {
+				return &mongo.UpdateResult{MatchedCount: 1}, nil
+			},
+			findFn: func(ctx context.Context, id string) (*usermodel.UserInfo, error) {
+				return &usermodel.UserInfo{ID: userID}, nil
+			},
+		},
+	}
+	l := NewCreateFormLogic(createCtx(userID.Hex()), svcCtx)
+	if _, err := l.CreateForm(newCreateReq()); err != nil {
+		t.Fatalf("duplicate key from concurrency should be allowed, got %v", err)
+	}
+	if deleted {
+		t.Fatal("form should not be rolled back on concurrent-insert duplicate key")
+	}
+}
+
 // 并发场景：表已被其他请求关联为 entry_form_id 时，回滚不得删除它
 func TestCreateForm_NoRollbackWhenFormAlreadyAssociated(t *testing.T) {
 	userID := primitive.NewObjectID()

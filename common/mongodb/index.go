@@ -15,14 +15,19 @@ type IndexSpec struct {
 	Collection string
 	Name       string
 	Unique     bool
+	Sparse     bool
 	Keys       bson.D
 }
 
-// indexInfo 是集合索引的期望/实际定义；Key 用 bson.D 保序解码，顺序是索引语义的一部分。
+// indexInfo 是集合索引的实际定义；Key 用 bson.D 保序解码，顺序是索引语义的一部分。
+// sparse / partialFilterExpression 会改变索引覆盖的文档范围，进而影响唯一性约束的
+// 实际作用域，比对时必须纳入，否则同名的 sparse/partial 索引会被误判为等价。
 type indexInfo struct {
-	Name   string `bson:"name"`
-	Key    bson.D `bson:"key"`
-	Unique bool   `bson:"unique"`
+	Name                    string `bson:"name"`
+	Key                     bson.D `bson:"key"`
+	Unique                  bool   `bson:"unique"`
+	Sparse                  bool   `bson:"sparse"`
+	PartialFilterExpression bson.M `bson:"partialFilterExpression"`
 }
 
 // Connect 建立 MongoDB 连接；调用方负责 Disconnect。
@@ -65,6 +70,9 @@ func EnsureIndex(ctx context.Context, client *mongo.Client, db string, spec Inde
 	opts := options.Index().SetName(spec.Name)
 	if spec.Unique {
 		opts = opts.SetUnique(true)
+	}
+	if spec.Sparse {
+		opts = opts.SetSparse(true)
 	}
 
 	if _, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: spec.Keys, Options: opts}); err != nil {
@@ -122,9 +130,18 @@ func findIndex(ctx context.Context, coll *mongo.Collection, name string) (*index
 	return nil, cur.Err()
 }
 
-// indexMatches 报告实际索引是否与期望完全一致（名字 + 键及顺序 + unique）。
+// indexMatches 报告实际索引是否与期望完全一致。
+//
+// 比较范围：名字 + 键及顺序 + unique + sparse + partialFilterExpression。
+// 后三项决定唯一性约束覆盖哪些文档，任一不符都必须判为不一致——
+// 否则同名但作用域不同的索引会被接受，调用方继而删除旧索引，导致约束名存实亡。
+// （期望侧只声明 sparse；partialFilterExpression 期望为"不设"，故实际存在即视为不符。）
 func indexMatches(info *indexInfo, spec IndexSpec) bool {
-	return info.Name == spec.Name && info.Unique == spec.Unique && keysMatch(info.Key, spec.Keys)
+	return info.Name == spec.Name &&
+		info.Unique == spec.Unique &&
+		info.Sparse == spec.Sparse &&
+		len(info.PartialFilterExpression) == 0 &&
+		keysMatch(info.Key, spec.Keys)
 }
 
 // keysMatch 比较两个索引键定义，顺序敏感；数值按整型归一（驱动可能解出 int32/int64）。

@@ -67,3 +67,34 @@ func TestIndexMatches(t *testing.T) {
 		t.Error("different keys must not match")
 	}
 }
+
+// sparse / partialFilterExpression 会改变唯一约束的实际作用域，必须判为不一致，
+// 否则会被误认为约束已建立，进而删掉旧索引导致唯一性名存实亡。
+func TestIndexMatches_SparseAndPartial(t *testing.T) {
+	spec := IndexSpec{
+		Collection: "entry_form",
+		Name:       "entry_form_user_id_cycle",
+		Unique:     true,
+		Keys:       bson.D{{Key: "user_id", Value: 1}, {Key: "cycle", Value: 1}},
+	}
+
+	sparse := &indexInfo{Name: spec.Name, Unique: true, Sparse: true,
+		Key: bson.D{{Key: "user_id", Value: 1}, {Key: "cycle", Value: 1}}}
+	if indexMatches(sparse, spec) {
+		t.Error("sparse index must not match a non-sparse spec")
+	}
+
+	partial := &indexInfo{Name: spec.Name, Unique: true,
+		PartialFilterExpression: bson.M{"cycle": bson.M{"$exists": true}},
+		Key:                     bson.D{{Key: "user_id", Value: 1}, {Key: "cycle", Value: 1}}}
+	if indexMatches(partial, spec) {
+		t.Error("partial index must not match a spec without partialFilterExpression")
+	}
+
+	// 期望 sparse 时，实际 sparse 才算匹配
+	sparseSpec := spec
+	sparseSpec.Sparse = true
+	if !indexMatches(sparse, sparseSpec) {
+		t.Error("sparse index should match a sparse spec")
+	}
+}

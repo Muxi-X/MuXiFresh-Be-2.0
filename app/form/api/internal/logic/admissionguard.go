@@ -8,10 +8,16 @@ import (
 	"MuXiFresh-Be-2.0/common/globalKey"
 )
 
+// isAdmittedStatus 报告录取状态是否属于"已录取成员"（实习期/已转正）。
+// 报名表是面向新生的入口，这两种状态不得被报名流程改写。
+func isAdmittedStatus(status string) bool {
+	return status == globalKey.Internship || status == globalKey.Formal
+}
+
 // ensureNotAdmittedMember 拒绝已录取成员（实习期/已转正）再次提交或重报报名表。
+// 无进度记录视为尚未报名的用户，放行。
 //
-// 报名表是面向新生的入口：已录取成员重报会混入当届审阅名单，其录取状态也不应
-// 被重新报名覆盖。无进度记录视为尚未报名的用户，放行。
+// 这是入口预检，用于给用户明确提示；写库时由 UpsertByUserId 的过滤条件兜底并发窗口。
 func ensureNotAdmittedMember(ctx context.Context, schedules scheduleModel.ScheduleModel, userId string) error {
 	schedule, err := schedules.FindOneByUserId(ctx, userId)
 	if err != nil {
@@ -20,10 +26,8 @@ func ensureNotAdmittedMember(ctx context.Context, schedules scheduleModel.Schedu
 		}
 		return err
 	}
-	switch schedule.AdmissionStatus {
-	case globalKey.Internship, globalKey.Formal:
+	if isAdmittedStatus(schedule.AdmissionStatus) {
 		return errors.New("已是正式成员，无需重复报名")
-	default:
-		return nil
 	}
+	return nil
 }

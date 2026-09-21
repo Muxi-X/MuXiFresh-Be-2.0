@@ -109,18 +109,24 @@ func upsertScheduleAndAssociate(ctx context.Context, svcCtx *svc.ServiceContext,
 		return err
 	}
 
-	// 入口的录取守卫已拦截已录取成员，故此处重置为"已报名"不会误伤其录取状态
-	if _, err := svcCtx.ScheduleModel.UpsertByUserId(ctx, &scheduleModel.Schedule{
+	// UpsertByUserId 的过滤条件排除录取态，故已录取成员在此写不进去（见其注释）
+	_, upsertErr := svcCtx.ScheduleModel.UpsertByUserId(ctx, &scheduleModel.Schedule{
 		UserID:          u,
 		EntryFormStatus: "已提交",
 		AdmissionStatus: "已报名",
-	}); err != nil && !mongo.IsDuplicateKeyError(err) {
-		return err
+	})
+	if upsertErr != nil && !mongo.IsDuplicateKeyError(upsertErr) {
+		return upsertErr
 	}
 
 	schedule, err := svcCtx.ScheduleModel.FindOneByUserId(ctx, userId)
 	if err != nil {
 		return err
+	}
+	// 命中唯一索引说明过滤未命中：要么该用户已是录取态（管理员在守卫之后设置），
+	// 要么并发请求刚插入。读回状态判别——录取态拒绝并回滚，其余（并发插入）放行。
+	if upsertErr != nil && isAdmittedStatus(schedule.AdmissionStatus) {
+		return errors.New("已是正式成员，无需重复报名")
 	}
 	ret, err := svcCtx.UserInfoModelClient.Update(ctx, &externalModel.UserInfo{
 		ID:          u,
