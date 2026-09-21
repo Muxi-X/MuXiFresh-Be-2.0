@@ -12,16 +12,25 @@ import (
 	"MuXiFresh-Be-2.0/common/globalKey"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 )
 
 type fakeFormUserInfoModel struct {
 	usermodel.UserInfoModel
 	findOneFn func(ctx context.Context, id string) (*usermodel.UserInfo, error)
+	updateFn  func(ctx context.Context, data *usermodel.UserInfo) (*mongo.UpdateResult, error)
 }
 
 func (f *fakeFormUserInfoModel) FindOne(ctx context.Context, id string) (*usermodel.UserInfo, error) {
 	return f.findOneFn(ctx, id)
+}
+
+func (f *fakeFormUserInfoModel) Update(ctx context.Context, data *usermodel.UserInfo) (*mongo.UpdateResult, error) {
+	if f.updateFn == nil {
+		return &mongo.UpdateResult{MatchedCount: 1}, nil
+	}
+	return f.updateFn(ctx, data)
 }
 
 type fakeFormClient struct {
@@ -29,12 +38,24 @@ type fakeFormClient struct {
 	checkCalled  bool
 	checkReq     *entryformclient.CheckReq
 	updateCalled bool
+	createCalled bool
+	createErr    error
+	createReq    *entryformclient.CreateReq
 }
 
 func (f *fakeFormClient) CheckForm(ctx context.Context, in *entryformclient.CheckReq, opts ...grpc.CallOption) (*entryformclient.CheckResp, error) {
 	f.checkCalled = true
 	f.checkReq = in
 	return &entryformclient.CheckResp{}, nil
+}
+
+func (f *fakeFormClient) CreateForm(ctx context.Context, in *entryformclient.CreateReq, opts ...grpc.CallOption) (*entryformclient.CreateResp, error) {
+	f.createCalled = true
+	f.createReq = in
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	return &entryformclient.CreateResp{FormID: primitive.NewObjectID().Hex()}, nil
 }
 
 func (f *fakeFormClient) UpdateForm(ctx context.Context, in *entryformclient.CreateReq, opts ...grpc.CallOption) (*entryformclient.CreateResp, error) {
