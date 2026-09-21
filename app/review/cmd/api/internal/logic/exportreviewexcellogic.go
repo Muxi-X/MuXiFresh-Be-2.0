@@ -45,18 +45,9 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 		return nil, "", errors.New("permission denied")
 	}
 
-	//秋招
-	startTime := time.Date(req.Year, time.July, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(req.Year, time.December, 31, 23, 59, 59, 999999999, time.UTC)
-	//春招
-	if req.Season == "spring" {
-		startTime = time.Date(req.Year, time.January, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(req.Year, time.June, 31, 23, 59, 59, 999999999, time.UTC)
-	}
-	if req.Season == "" {
-		startTime = time.Date(req.Year, time.January, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(req.Year, time.December, 31, 23, 59, 59, 999999999, time.UTC)
-	}
+	// 届次窗口与 form 的 CycleOf 分界对齐（含春招 6/30 边界），与 GetReview 共用
+	startTime, endTime := seasonWindow(req.Year, req.Season)
+
 	rows, err := buildReviewRows(l.ctx, l.svcCtx, groupFilter(req.Group), req.School, req.Grade, req.Status, startTime, endTime)
 	if err != nil {
 		return nil, "", err
