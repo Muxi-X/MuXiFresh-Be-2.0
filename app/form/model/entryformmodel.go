@@ -17,7 +17,11 @@ type (
 	EntryFormModel interface {
 		entryFormModel
 		InsertReturnID(ctx context.Context, data *EntryForm) (interface{}, error)
+		// FindOneByUserId 返回该用户最新一届（createAt 最大）的报名表。
+		// 同一用户跨届可存在多份表，故必须排序后再取，否则可能取到往届。
 		FindOneByUserId(ctx context.Context, userId string) (*EntryForm, error)
+		// FindByUserIdAndCycle 返回指定用户在指定届次的报名表；无则 ErrNotFound。
+		FindByUserIdAndCycle(ctx context.Context, userId, cycle string) (*EntryForm, error)
 		FindByGroup(ctx context.Context, group string, school string, grade string, startDate time.Time, endDate time.Time) ([]*EntryForm, error)
 	}
 
@@ -36,9 +40,12 @@ func NewEntryFormModel(url, db, collection string) EntryFormModel {
 
 func (m *defaultEntryFormModel) InsertReturnID(ctx context.Context, data *EntryForm) (interface{}, error) {
 	if data.ID.IsZero() {
+		now := time.Now()
 		data.ID = primitive.NewObjectID()
-		data.CreateAt = time.Now()
-		data.UpdateAt = time.Now()
+		data.CreateAt = now
+		data.UpdateAt = now
+		// 届次与 CreateAt 必须同一时刻推导，否则跨越 7/1 分界时二者会不一致
+		data.Cycle = CycleOf(now)
 	}
 
 	id, err := m.conn.InsertOne(ctx, data)
@@ -56,7 +63,9 @@ func (m *customEntryFormModel) FindOneByUserId(ctx context.Context, userId strin
 
 	var data EntryForm
 
-	err = m.conn.FindOne(ctx, &data, bson.M{"user_id": oid})
+	// 跨届多表时取最新一届（createAt 倒序），保证作业组别校验/判交表口径基于当届
+	err = m.conn.FindOne(ctx, &data, bson.M{"user_id": oid},
+		options.FindOne().SetSort(bson.D{{Key: "createAt", Value: -1}}))
 	switch err {
 	case nil:
 		return &data, nil
@@ -67,6 +76,27 @@ func (m *customEntryFormModel) FindOneByUserId(ctx context.Context, userId strin
 	}
 }
 
+// FindByUserIdAndCycle 返回指定用户在指定届次的报名表；无则 ErrNotFound。
+func (m *customEntryFormModel) FindByUserIdAndCycle(ctx context.Context, userId, cycle string) (*EntryForm, error) {
+	oid, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return nil, ErrInvalidObjectId
+	}
+
+	var data EntryForm
+
+	err = m.conn.FindOne(ctx, &data, bson.M{"user_id": oid, "cycle": cycle})
+	switch err {
+	case nil:
+		return &data, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+// FindByGroup 按时间窗口与可选条件查询报名表。
 func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, school string, grade string, startDate time.Time, endDate time.Time) ([]*EntryForm, error) {
 	var entryForms []*EntryForm
 	filter := bson.D{}

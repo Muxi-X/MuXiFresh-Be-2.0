@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 type CreateFormLogic struct {
@@ -56,8 +55,6 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 		Knowledge:     in.Knowledge,
 		SelfIntro:     in.SelfIntro,
 		ExtraQuestion: in.ExtraQuestion,
-		UpdateAt:      time.Now(),
-		CreateAt:      time.Now(),
 	})
 
 	if err != nil {
