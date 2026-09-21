@@ -7,7 +7,6 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	externalModel1 "MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/rpcauth"
-	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
@@ -27,10 +26,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	rpcOpts := []zrpc.ClientOption{
 		zrpc.WithDialOption(grpc.WithChainUnaryInterceptor(clientInterceptor)),
-	}
-
-	if err := EnsureReviewIndexes(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB); err != nil {
-		logx.Errorf("EnsureReviewIndexes failed: %v", err)
 	}
 
 	return &ServiceContext{

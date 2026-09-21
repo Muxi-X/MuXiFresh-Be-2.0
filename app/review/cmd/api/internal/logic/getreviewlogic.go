@@ -8,7 +8,6 @@ import (
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"context"
 	"errors"
-	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -38,14 +37,8 @@ func (l *GetReviewLogic) GetReview(req *types.GetReviewReq) (resp *types.GetRevi
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
 		return nil, errors.New("permission denied")
 	}
-	//秋招
-	startTime := time.Date(req.Year, time.July, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(req.Year, time.December, 31, 23, 59, 59, 999999999, time.UTC)
-
-	if req.Season == "spring" {
-		startTime = time.Date(req.Year, time.January, 1, 0, 0, 0, 0, time.UTC)
-		endTime = time.Date(req.Year, time.June, 31, 23, 59, 59, 999999999, time.UTC)
-	}
+	// 届次窗口与 form 的 CycleOf 分界对齐，避免同一份表落入相邻两届
+	startTime, endTime := seasonWindow(req.Year, req.Season)
 
 	rows, err := buildReviewRows(l.ctx, l.svcCtx, groupFilter(req.Group), req.School, req.Grade, req.Status, startTime, endTime)
 	if err != nil {
