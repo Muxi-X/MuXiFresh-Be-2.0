@@ -44,6 +44,46 @@ func TestKeysMatch_OrderSensitive(t *testing.T) {
 	}
 }
 
+// 判定必须按定义而非名字：生产 schedule 的历史索引名为 user_id_1，与期望的
+// schedule_user_id 定义完全相同——必须视为"已存在"，否则 CreateOne 会因
+// IndexOptionsConflict 失败，导致服务启动 panic。
+func TestIndexMatches_IgnoresName(t *testing.T) {
+	spec := IndexSpec{
+		Collection: "schedule",
+		Name:       "schedule_user_id",
+		Unique:     true,
+		Keys:       bson.D{{Key: "user_id", Value: 1}},
+	}
+
+	legacyNamed := &indexInfo{
+		Name:   "user_id_1", // 名字不同
+		Unique: true,
+		Key:    bson.D{{Key: "user_id", Value: int32(1)}},
+	}
+	if !indexMatches(legacyNamed, spec) {
+		t.Error("same definition under a different name must match")
+	}
+}
+
+// 同名但定义不同（如非唯一）必须判为不一致，否则会误以为约束已建立
+func TestIndexMatches_SameNameDifferentDefinition(t *testing.T) {
+	spec := IndexSpec{
+		Collection: "schedule",
+		Name:       "schedule_user_id",
+		Unique:     true,
+		Keys:       bson.D{{Key: "user_id", Value: 1}},
+	}
+
+	sameNameNotUnique := &indexInfo{
+		Name:   "schedule_user_id",
+		Unique: false,
+		Key:    bson.D{{Key: "user_id", Value: 1}},
+	}
+	if indexMatches(sameNameNotUnique, spec) {
+		t.Error("same name with different uniqueness must not match")
+	}
+}
+
 func TestIndexMatches(t *testing.T) {
 	spec := IndexSpec{
 		Collection: "entry_form",
