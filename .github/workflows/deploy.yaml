@@ -100,6 +100,9 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # 跨国推送镜像共享出口带宽，全量并发会互相争抢导致断连/超时。
+      # 限制同时构建的服务数，保证单个推送独享带宽。
+      max-parallel: 2
       matrix:
         service: ${{ fromJSON(needs.changes.outputs.services) }}
     steps:
@@ -214,12 +217,37 @@ jobs:
           echo "Compressing binaries with UPX..."
           find "app/${SERVICE}" -type f -executable -not -name "*.sh" -exec upx -1 {} + 2>/dev/null || true
 
+      # docker/login-action 内部只执行一次 docker login，登录会 ping
+      # <registry>/v2/，跨国网络抖动时连接被 reset 会直接判整个 job 失败。
+      # 改为自行重试，避免因瞬时断连浪费整个 job。
       - name: Log in to Aliyun Docker Registry
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.ALIYUN_USERNAME }}
-          password: ${{ secrets.ALIYUN_PASSWORD }}
-          registry: ${{ secrets.ALIYUN_REGISTRY }}
+        env:
+          REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          REGISTRY_USER: ${{ secrets.ALIYUN_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.ALIYUN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          success=false
+          for i in {1..5}; do
+            echo "Login attempt $i/5..."
+            if printf '%s' "$REGISTRY_PASSWORD" | docker login \
+              --username="$REGISTRY_USER" \
+              --password-stdin \
+              "$REGISTRY"; then
+              success=true
+              echo "Login succeeded on attempt $i!"
+              break
+            else
+              echo "Login attempt $i failed, retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+
+          if [[ "$success" != "true" ]]; then
+            echo "ERROR: Failed to log in to registry after 5 attempts due to network issues." >&2
+            exit 1
+          fi
 
       - name: Build and Push with Retry
         env:
