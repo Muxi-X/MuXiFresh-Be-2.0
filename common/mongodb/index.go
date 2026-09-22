@@ -48,23 +48,27 @@ func EnsureIndexes(ctx context.Context, client *mongo.Client, db string, specs .
 
 // EnsureIndex 创建单个索引。
 //
-// 判定"已存在"必须比对**名字 + 键（含顺序）+ unique**，不能只比名字：
-// 若同名索引的键或唯一性不符，直接跳过会让调用方误以为约束已建立，
-// 进而在后续步骤（如删除旧的唯一索引）中丢掉唯一性保护。
+// 判定"已存在"比对的是**索引定义**（键及顺序 + unique + sparse + partial），
+// 而不是索引名。名字只是标签：同名不同定义、或不同名相同定义都很常见
+// （如历史手工建的 user_id_1 与期望的 schedule_user_id 定义完全相同）。
+// 若按名判定，不同名同定义的索引会走 CreateOne 并因 IndexOptionsConflict 失败；
+// 同名不同定义则会被误当成满足约束。
 func EnsureIndex(ctx context.Context, client *mongo.Client, db string, spec IndexSpec) error {
 	coll := client.Database(db).Collection(spec.Collection)
 
-	existing, err := findIndex(ctx, coll, spec.Name)
+	existing, err := findIndexByDefinition(ctx, coll, spec)
 	if err != nil {
 		return fmt.Errorf("list index %s: %w", spec.Name, err)
 	}
 	if existing != nil {
-		if indexMatches(existing, spec) {
+		if existing.Name != spec.Name {
+			// 定义一致但名字不同：等价于约束已建立，不重复建（Mongo 会报
+			// IndexOptionsConflict），也不改名——改名需 drop+create，属运维动作。
+			logx.Infof("index %s already present under name %q, skip", spec.Name, existing.Name)
+		} else {
 			logx.Infof("index %s already exists, skip", spec.Name)
-			return nil
 		}
-		return fmt.Errorf("index %s exists with different definition (keys=%v unique=%v), want (keys=%v unique=%v)",
-			spec.Name, existing.Key, existing.Unique, spec.Keys, spec.Unique)
+		return nil
 	}
 
 	opts := options.Index().SetName(spec.Name)
@@ -76,8 +80,8 @@ func EnsureIndex(ctx context.Context, client *mongo.Client, db string, spec Inde
 	}
 
 	if _, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: spec.Keys, Options: opts}); err != nil {
-		// 并发建索引等情况：重新核对是否为完全一致的索引，仅精确匹配才算成功
-		if existing, lookErr := findIndex(ctx, coll, spec.Name); lookErr == nil && existing != nil && indexMatches(existing, spec) {
+		// 并发建索引等情况：重新按定义核对，命中才算成功
+		if found, lookErr := findIndexByDefinition(ctx, coll, spec); lookErr == nil && found != nil {
 			logx.Infof("index %s already exists, skip", spec.Name)
 			return nil
 		}
@@ -92,7 +96,7 @@ func EnsureIndex(ctx context.Context, client *mongo.Client, db string, spec Inde
 func DropIndexByKey(ctx context.Context, client *mongo.Client, db, collection, name string, want bson.D) error {
 	coll := client.Database(db).Collection(collection)
 
-	info, err := findIndex(ctx, coll, name)
+	info, err := findIndexByName(ctx, coll, name)
 	if err != nil {
 		return fmt.Errorf("list index %s: %w", name, err)
 	}
@@ -110,8 +114,9 @@ func DropIndexByKey(ctx context.Context, client *mongo.Client, db, collection, n
 	return nil
 }
 
-// findIndex 按名查找集合索引；不存在返回 (nil, nil)。
-func findIndex(ctx context.Context, coll *mongo.Collection, name string) (*indexInfo, error) {
+// findIndexByName 按名查找集合索引；不存在返回 (nil, nil)。
+// 仅用于按名删除（删除必须指名，不能按键推断）。
+func findIndexByName(ctx context.Context, coll *mongo.Collection, name string) (*indexInfo, error) {
 	cur, err := coll.Indexes().List(ctx)
 	if err != nil {
 		return nil, err
@@ -130,15 +135,35 @@ func findIndex(ctx context.Context, coll *mongo.Collection, name string) (*index
 	return nil, cur.Err()
 }
 
-// indexMatches 报告实际索引是否与期望完全一致。
+// findIndexByDefinition 按定义（键及顺序 + unique + sparse + partial）查找索引；
+// 不存在返回 (nil, nil)。名字不参与匹配。
+func findIndexByDefinition(ctx context.Context, coll *mongo.Collection, spec IndexSpec) (*indexInfo, error) {
+	cur, err := coll.Indexes().List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	for cur.Next(ctx) {
+		var info indexInfo
+		if err := cur.Decode(&info); err != nil {
+			return nil, err
+		}
+		if indexMatches(&info, spec) {
+			return &info, nil
+		}
+	}
+	return nil, cur.Err()
+}
+
+// indexMatches 报告实际索引定义是否满足期望。
 //
-// 比较范围：名字 + 键及顺序 + unique + sparse + partialFilterExpression。
-// 后三项决定唯一性约束覆盖哪些文档，任一不符都必须判为不一致——
-// 否则同名但作用域不同的索引会被接受，调用方继而删除旧索引，导致约束名存实亡。
-// （期望侧只声明 sparse；partialFilterExpression 期望为"不设"，故实际存在即视为不符。）
+// 比较范围：键及顺序 + unique + sparse + partialFilterExpression。**名字不参与**——
+// 名字只是标签，约束的语义完全由定义决定。partialFilterExpression 会改变唯一约束
+// 覆盖的文档范围，期望侧不设该选项，故实际存在即视为不符（避免把作用域更窄的索引
+// 误认为已满足约束，进而删除旧索引导致唯一性名存实亡）。
 func indexMatches(info *indexInfo, spec IndexSpec) bool {
-	return info.Name == spec.Name &&
-		info.Unique == spec.Unique &&
+	return info.Unique == spec.Unique &&
 		info.Sparse == spec.Sparse &&
 		len(info.PartialFilterExpression) == 0 &&
 		keysMatch(info.Key, spec.Keys)
