@@ -97,6 +97,7 @@ jobs:
     if: needs.changes.outputs.services != '[]'
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -125,36 +126,36 @@ jobs:
 
           case "$SERVICE" in
             form)
-              go build -o app/form/rpc/form ./app/form/rpc
-              go build -o app/form/api/form ./app/form/api
+              go build -ldflags="-s -w" -o app/form/rpc/form ./app/form/rpc
+              go build -ldflags="-s -w" -o app/form/api/form ./app/form/api
               mkdir -p app/form/rpc/etc app/form/api/etc
               : > app/form/rpc/etc/form.yaml
               : > app/form/api/etc/form-api.yaml
               ;;
             intro)
-              go build -o app/intro/rpc/intro ./app/intro/rpc
-              go build -o app/intro/api/intro ./app/intro/api
+              go build -ldflags="-s -w" -o app/intro/rpc/intro ./app/intro/rpc
+              go build -ldflags="-s -w" -o app/intro/api/intro ./app/intro/api
               mkdir -p app/intro/rpc/etc app/intro/api/etc
               : > app/intro/rpc/etc/intro.yaml
               : > app/intro/api/etc/intro-api.yaml
               ;;
             review)
-              go build -o app/review/cmd/api/review ./app/review/cmd/api
+              go build -ldflags="-s -w" -o app/review/cmd/api/review ./app/review/cmd/api
               mkdir -p app/review/cmd/api/etc
               : > app/review/cmd/api/etc/review.yaml
               ;;
             schedule)
-              go build -o app/schedule/rpc/schedule ./app/schedule/rpc
-              go build -o app/schedule/api/schedule ./app/schedule/api
+              go build -ldflags="-s -w" -o app/schedule/rpc/schedule ./app/schedule/rpc
+              go build -ldflags="-s -w" -o app/schedule/api/schedule ./app/schedule/api
               mkdir -p app/schedule/rpc/etc app/schedule/api/etc
               : > app/schedule/rpc/etc/schedule.yaml
               : > app/schedule/api/etc/schedule-api.yaml
               ;;
             task)
-              go build -o app/task/cmd/rpc/assignment/assignment ./app/task/cmd/rpc/assignment
-              go build -o app/task/cmd/rpc/comment/comment ./app/task/cmd/rpc/comment
-              go build -o app/task/cmd/rpc/submission/submission ./app/task/cmd/rpc/submission
-              go build -o app/task/cmd/api/task ./app/task/cmd/api
+              go build -ldflags="-s -w" -o app/task/cmd/rpc/assignment/assignment ./app/task/cmd/rpc/assignment
+              go build -ldflags="-s -w" -o app/task/cmd/rpc/comment/comment ./app/task/cmd/rpc/comment
+              go build -ldflags="-s -w" -o app/task/cmd/rpc/submission/submission ./app/task/cmd/rpc/submission
+              go build -ldflags="-s -w" -o app/task/cmd/api/task ./app/task/cmd/api
               mkdir -p \
                 app/task/cmd/rpc/assignment/etc \
                 app/task/cmd/rpc/comment/etc \
@@ -166,22 +167,22 @@ jobs:
               : > app/task/cmd/api/etc/task.yaml
               ;;
             test)
-              go build -o app/test/rpc/test ./app/test/rpc
-              go build -o app/test/api/test ./app/test/api
+              go build -ldflags="-s -w" -o app/test/rpc/test ./app/test/rpc
+              go build -ldflags="-s -w" -o app/test/api/test ./app/test/api
               mkdir -p app/test/rpc/etc app/test/api/etc
               : > app/test/rpc/etc/test.yaml
               : > app/test/api/etc/test-api.yaml
               ;;
             user)
-              go build -o app/user/cmd/rpc/user/user ./app/user/cmd/rpc/user
-              go build -o app/user/cmd/api/user ./app/user/cmd/api
+              go build -ldflags="-s -w" -o app/user/cmd/rpc/user/user ./app/user/cmd/rpc/user
+              go build -ldflags="-s -w" -o app/user/cmd/api/user ./app/user/cmd/api
               mkdir -p app/user/cmd/rpc/user/etc app/user/cmd/api/etc
               : > app/user/cmd/rpc/user/etc/user.yaml
               : > app/user/cmd/api/etc/user.yaml
               ;;
             userauth)
-              go build -o app/userauth/cmd/rpc/accountCenter/accountCenter ./app/userauth/cmd/rpc/accountCenter
-              go build -o app/userauth/cmd/api/user-auth ./app/userauth/cmd/api
+              go build -ldflags="-s -w" -o app/userauth/cmd/rpc/accountCenter/accountCenter ./app/userauth/cmd/rpc/accountCenter
+              go build -ldflags="-s -w" -o app/userauth/cmd/api/user-auth ./app/userauth/cmd/api
               mkdir -p app/userauth/cmd/rpc/accountCenter/etc app/userauth/cmd/api/etc
               : > app/userauth/cmd/rpc/accountCenter/etc/accountCenter.yaml
               : > app/userauth/cmd/api/etc/user-auth.yaml
@@ -204,11 +205,10 @@ jobs:
           password: ${{ secrets.ALIYUN_PASSWORD }}
           registry: ${{ secrets.ALIYUN_REGISTRY }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
 
       - name: Build and push
         uses: docker/build-push-action@v6
