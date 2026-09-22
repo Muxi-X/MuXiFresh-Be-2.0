@@ -205,19 +205,41 @@ jobs:
           password: ${{ secrets.ALIYUN_PASSWORD }}
           registry: ${{ secrets.ALIYUN_REGISTRY }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: network=host
+      - name: Build and Push with Retry
+        env:
+          TAG: ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/muxifresh-${{ matrix.service }}:${{ needs.changes.outputs.version }}
+          CONTEXT: ./app/${{ matrix.service }}
+          DOCKERFILE: ./app/${{ matrix.service }}/Dockerfile
+        run: |
+          set -euo pipefail
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app/${{ matrix.service }}
-          file: ./app/${{ matrix.service }}/Dockerfile
-          provenance: false
-          push: true
-          tags: ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/muxifresh-${{ matrix.service }}:${{ needs.changes.outputs.version }}
+          # 禁用 IPv6，避免跨国路由解析异常
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1 || true
+
+          # 1. 使用宿主机原生 Docker 构建镜像
+          echo "Building image $TAG..."
+          docker build -t "$TAG" -f "$DOCKERFILE" "$CONTEXT"
+
+          # 2. 针对跨国网络波动增加最多 5 次重试机制
+          echo "Pushing image $TAG to Aliyun..."
+          success=false
+          for i in {1..5}; do
+            echo "Push attempt $i/5..."
+            if docker push "$TAG"; then
+              success=true
+              echo "Push succeeded on attempt $i!"
+              break
+            else
+              echo "Push attempt $i failed, retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+
+          if [[ "$success" != "true" ]]; then
+            echo "ERROR: Failed to push image after 5 attempts due to network issues." >&2
+            exit 1
+          fi
 
   deploy:
     if: needs.changes.outputs.services != '[]'
