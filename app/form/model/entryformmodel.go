@@ -24,8 +24,9 @@ type (
 		// FindByUserIdAndCycle 返回指定用户在指定届次的报名表；无则 ErrNotFound。
 		FindByUserIdAndCycle(ctx context.Context, userId, cycle string) (*EntryForm, error)
 		FindByGroup(ctx context.Context, group string, school string, grade string, startDate time.Time, endDate time.Time) ([]*EntryForm, error)
-		// SetInterviewComment 只更新面评字段，不触碰报名表其它字段；空串可清空面评。
-		SetInterviewComment(ctx context.Context, formID string, comment string) (*mongo.UpdateResult, error)
+		// SetInterviewComment 以乐观锁方式只更新面评字段与版本号，不触碰报名表其它字段；
+		// 空串可清空面评。仅当当前版本等于 expectedRev 时才写入，命中 0 条表示版本冲突或文档不存在。
+		SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64) (*mongo.UpdateResult, error)
 	}
 
 	customEntryFormModel struct {
@@ -132,11 +133,27 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 
 // SetInterviewComment 用显式 $set 只写面评字段，避免复用 Update 时把整个结构体
 // 写回而误触其它字段；用 bson.M 而非结构体，空串也会被写入，所以可以清空面评。
-func (m *customEntryFormModel) SetInterviewComment(ctx context.Context, formID string, comment string) (*mongo.UpdateResult, error) {
+// 过滤条件带上 interviewCommentRev 做 CAS，命中才 +1，从而拒绝基于旧版本的覆盖写。
+// expectedRev 为 0 时要额外匹配「字段不存在」的老文档——Mongo 的 {field: 0} 不匹配缺失字段。
+func (m *customEntryFormModel) SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
 	oid, err := primitive.ObjectIDFromHex(formID)
 	if err != nil {
 		return nil, ErrInvalidObjectId
 	}
 
-	return m.conn.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"interviewComment": comment}})
+	filter := bson.M{"_id": oid}
+	if expectedRev == 0 {
+		filter["$or"] = []bson.M{
+			{"interviewCommentRev": int64(0)},
+			{"interviewCommentRev": bson.M{"$exists": false}},
+		}
+	} else {
+		filter["interviewCommentRev"] = expectedRev
+	}
+
+	return m.conn.UpdateOne(ctx, filter,
+		bson.M{
+			"$set": bson.M{"interviewComment": comment},
+			"$inc": bson.M{"interviewCommentRev": 1},
+		})
 }

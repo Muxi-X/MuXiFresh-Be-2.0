@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/review/cmd/api/internal/svc"
 	"MuXiFresh-Be-2.0/app/review/cmd/api/internal/types"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
@@ -41,19 +42,38 @@ func (l *SetInterviewCommentLogic) SetInterviewComment(req *types.SetInterviewCo
 		return nil, errors.New("permission denied")
 	}
 
+	if req.Rev < 0 {
+		return nil, errors.New("invalid rev")
+	}
 	if err := validateInterviewComment(req.Comment); err != nil {
 		return nil, err
 	}
 
-	ret, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment)
+	// 乐观锁写入：只有当前版本等于 req.Rev 才成功，避免基于旧版本的覆盖
+	ret, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment, req.Rev)
 	if err != nil {
 		return nil, err
 	}
 	if ret.MatchedCount == 0 {
-		return nil, errors.New("entry form not found")
+		// 未命中可能是版本冲突，也可能是报名表不存在，读一次加以区分
+		_, findErr := l.svcCtx.EntryFormModel.FindOne(l.ctx, req.FormID)
+		return nil, commentWriteError(findErr)
 	}
 
-	return &types.SetInterviewCommentResp{Flag: true}, nil
+	return &types.SetInterviewCommentResp{Flag: true, Rev: req.Rev + 1}, nil
+}
+
+// commentWriteError 把 CAS 未命中后的读回结果映射为对外错误：
+// 文档不存在 -> entry form not found；读回本身出错 -> 原错误；其余 -> 版本冲突。
+func commentWriteError(findErr error) error {
+	switch {
+	case errors.Is(findErr, model.ErrNotFound):
+		return errors.New("entry form not found")
+	case findErr != nil:
+		return findErr
+	default:
+		return errors.New("comment has been modified, please refresh")
+	}
 }
 
 // validateInterviewComment 校验面评正文字符数，空串合法（表示清空）。

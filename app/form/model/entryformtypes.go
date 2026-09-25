@@ -24,7 +24,10 @@ type EntryForm struct {
 	ExtraQuestion string `bson:"extraQuestion,omitempty" json:"extraQuestion,omitempty"`
 	// InterviewComment 是管理员填写的面评 markdown 正文。仅审阅侧读写，
 	// 不进入候选人可见的报名表响应（见 form/rpc CheckForm）。
-	InterviewComment string    `bson:"interviewComment,omitempty" json:"interviewComment,omitempty"`
-	UpdateAt         time.Time `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
-	CreateAt         time.Time `bson:"createAt,omitempty" json:"createAt,omitempty"`
+	InterviewComment string `bson:"interviewComment,omitempty" json:"interviewComment,omitempty"`
+	// InterviewCommentRev 是面评的版本号，用作并发写入的乐观锁：每次写入 +1，
+	// 缺省/0 表示从未填写。
+	InterviewCommentRev int64     `bson:"interviewCommentRev,omitempty" json:"interviewCommentRev,omitempty"`
+	UpdateAt            time.Time `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
+	CreateAt            time.Time `bson:"createAt,omitempty" json:"createAt,omitempty"`
 }
