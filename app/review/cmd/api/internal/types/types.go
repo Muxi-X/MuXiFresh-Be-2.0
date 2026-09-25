@@ -32,22 +32,23 @@ type GetReviewResp struct {
 }
 
 type Row struct {
-	Name            string `json:"name"`
-	Grade           string `json:"grader"`
-	School          string `json:"school"`
-	Group           string `json:"group"`
-	Gender          string `json:"gender"`
-	Major           string `json:"major"`
-	Phone           string `json:"phone"`
-	QQ              string `json:"qq"`
-	FormID          string `json:"form_id"`
-	UserId          string `json:"user_id"`
-	AdmissionStatus string `json:"admission_status"`
-	ScheduleID      string `json:"schedule_id"`
-	Understanding   string `json:"understanding"`
-	Reason          string `json:"reason"`
-	SelfIntro       string `json:"selfintro"`
-	ExtraQuestion   string `json:"extra_question"`
+	Name             string `json:"name"`
+	Grade            string `json:"grader"`
+	School           string `json:"school"`
+	Group            string `json:"group"`
+	Gender           string `json:"gender"`
+	Major            string `json:"major"`
+	Phone            string `json:"phone"`
+	QQ               string `json:"qq"`
+	FormID           string `json:"form_id"`
+	UserId           string `json:"user_id"`
+	AdmissionStatus  string `json:"admission_status"`
+	ScheduleID       string `json:"schedule_id"`
+	Understanding    string `json:"understanding"`
+	Reason           string `json:"reason"`
+	SelfIntro        string `json:"selfintro"`
+	ExtraQuestion    string `json:"extra_question"`
+	InterviewComment string `json:"interview_comment"`
 }
 
 type SetAdmissionStatusReq struct {
@@ -57,5 +58,15 @@ type SetAdmissionStatusReq struct {
 }
 
 type SetAdmissionStatusResp struct {
+	Flag bool `json:"flag"`
+}
+
+type SetInterviewCommentReq struct {
+	Authorization string `header:"Authorization"`
+	FormID        string `json:"form_id"`
+	Comment       string `json:"comment"`
+}
+
+type SetInterviewCommentResp struct {
 	Flag bool `json:"flag"`
 }
