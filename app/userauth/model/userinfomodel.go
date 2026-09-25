@@ -97,7 +97,7 @@ func (m *defaultUserInfoModel) UpdateByEmail(ctx context.Context, data *UserInfo
 func (m *defaultUserInfoModel) FindByUserType(ctx context.Context, userType string) ([]*UserInfo, error) {
 	var userInfos []*UserInfo
 
-	err := m.conn.Find(ctx, &userInfos, bson.M{"user_type": userType}, options.Find().SetSort(bson.D{{"nickname", 1}}))
+	err := m.conn.Find(ctx, &userInfos, bson.M{"user_type": userType}, options.Find().SetSort(bson.D{{Key: "nickname", Value: 1}}))
 	switch err {
 	case nil:
 		return userInfos, nil
