@@ -22,22 +22,24 @@ type GetReviewReq {
 }
 
 type Row {
-	Name            string `json:"name"`
-	Grade           string `json:"grader"`
-	School          string `json:"school"`
-	Group           string `json:"group"`
-	Gender          string `json:"gender"`
-	Major           string `json:"major"`
-	Phone           string `json:"phone"`
-	QQ              string `json:"qq"`
-	FormID          string `json:"form_id"`
-	UserId          string `json:"user_id"`
-	AdmissionStatus string `json:"admission_status"`
-	ScheduleID      string `json:"schedule_id"`
-	Understanding   string `json:"understanding"`
-	Reason          string `json:"reason"`
-	SelfIntro       string `json:"selfintro"`
-	ExtraQuestion   string `json:"extra_question"`
+	Name                string `json:"name"`
+	Grade               string `json:"grader"`
+	School              string `json:"school"`
+	Group               string `json:"group"`
+	Gender              string `json:"gender"`
+	Major               string `json:"major"`
+	Phone               string `json:"phone"`
+	QQ                  string `json:"qq"`
+	FormID              string `json:"form_id"`
+	UserId              string `json:"user_id"`
+	AdmissionStatus     string `json:"admission_status"`
+	ScheduleID          string `json:"schedule_id"`
+	Understanding       string `json:"understanding"`
+	Reason              string `json:"reason"`
+	SelfIntro           string `json:"selfintro"`
+	ExtraQuestion       string `json:"extra_question"`
+	InterviewComment    string `json:"interview_comment"`
+	InterviewCommentRev int64  `json:"interview_comment_rev"`
 }
 
 type GetReviewResp {
@@ -54,6 +56,19 @@ type SetAdmissionStatusReq {
 
 type SetAdmissionStatusResp {
 	Flag bool `json:"flag"`
+}
+
+//填写/更新面试评价（markdown 正文，空串清空；rev 为乐观锁版本号，首次填写传 0）
+type SetInterviewCommentReq {
+	Authorization string `header:"Authorization"`
+	FormID        string `json:"form_id"`
+	Comment       string `json:"comment"`
+	Rev           int64  `json:"rev,optional,default=0"`
+}
+
+type SetInterviewCommentResp {
+	Flag bool  `json:"flag"`
+	Rev  int64 `json:"rev"`
 }
 
 // 导出 Excel 请求
@@ -79,6 +94,10 @@ service review {
 	@doc "调整录取状态"
 	@handler SetAdmissionStatus
 	post /review/admission_status (SetAdmissionStatusReq) returns (SetAdmissionStatusResp)
+
+	@doc "填写/更新面试评价"
+	@handler SetInterviewComment
+	post /review/interview_comment (SetInterviewCommentReq) returns (SetInterviewCommentResp)
 
 	@doc "一键导出 Excel（包含每个组的名单）。返回 xlsx 二进制流（application/vnd.openxmlformats-officedocument.spreadsheetml.sheet），文件名在 Content-Disposition 响应头"
 	@handler ExportReviewExcel
