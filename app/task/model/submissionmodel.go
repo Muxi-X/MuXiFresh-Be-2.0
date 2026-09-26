@@ -45,7 +45,7 @@ func (m *customSubmissionModel) FindByUserIdAndAssignmentID(ctx context.Context,
 		return nil, err
 	}
 	var submissions []*Submission
-	err = m.conn.Find(ctx, &submissions, bson.M{"user_id": uid, "assignment_id": aid}, options.Find().SetSort(bson.D{{"version", 1}}))
+	err = m.conn.Find(ctx, &submissions, bson.M{"user_id": uid, "assignment_id": aid}, options.Find().SetSort(bson.D{{Key: "version", Value: 1}}))
 	switch err {
 	case nil:
 		return submissions, nil
@@ -63,13 +63,13 @@ func (m *customSubmissionModel) FindByAssignmentID(ctx context.Context, assignme
 		return nil, err
 	}
 	pipeline := mongo.Pipeline{
-		{{"$match", bson.M{"assignment_id": aid}}},
-		{{"$group", bson.M{
+		{{Key: "$match", Value: bson.M{"assignment_id": aid}}},
+		{{Key: "$group", Value: bson.M{
 			"_id":         "$user_id",
 			"status":      bson.M{"$last": "$status"},
 			"version_num": bson.M{"$sum": 1},
 		}}},
-		{{"$sort", bson.D{{"_id", 1}}}},
+		{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
 	}
 	err = m.conn.Aggregate(ctx, &submissionStats, pipeline)
 	switch err {

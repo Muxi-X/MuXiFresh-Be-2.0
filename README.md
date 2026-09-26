@@ -24,29 +24,48 @@ Nacos 的服务配置与基础设施配置约定见 [deploy/nacos/README.md](dep
 - form：报名表
 - test：测验
 
+## 开发
+
+常用命令封装在 [Makefile](Makefile)：
+
+```bash
+make fmt      # gofmt -w .
+make vet      # go vet ./...
+make test     # go test ./...
+make lint     # fmt-check + vet + test
+```
+
+CI（gofmt 校验、`go vet`、`go test`）在 PR 与 main push 时运行，见 [.github/workflows/ci.yaml](.github/workflows/ci.yaml)。
+
 ## 运行
 
 ### 1. 配置
 
- 复制 `~/etc/app-example.yaml` 文件为 `~/etc/app.yaml`，并根据需要进行配置。
+运行时配置由 Nacos 统一管理，不再使用仓库内的 yaml 文件。需要先准备连接 Nacos 所需的环境变量：
+
+| 变量 | 说明 |
+| --- | --- |
+| `NACOS_ADDR` | Nacos 地址，端口固定 `8848` |
+| `NACOS_NAMESPACE` | Nacos namespace ID |
+| `NACOS_USERNAME` / `NACOS_PASSWORD` | Nacos 账号密码 |
+
+服务配置（`infra` 及各服务 Data ID）的字段约定与导入顺序见 [deploy/nacos/README.md](deploy/nacos/README.md)。
 
 ### 2. 构建运行
 
-- `rpc`服务
+go-zero 的 `-f` 配置 flag 已不再使用，入口直接读取 Nacos。进入对应服务目录执行，入口文件名以该目录 `main` 包的文件为准（如 form 为 `form.go`、review 为 `review.go`、userauth 为 `user-auth.go`）：
 
-  进入`rpc`服务目录，执行
+- `rpc` 服务（例如 form/rpc）
 
-  ```go
-  go run rpc.go -f etc/rpc.yaml
+  ```bash
+  go run form.go
   ```
 
-- `api`服务
+- `api` 服务（例如 form/api）
 
-  进入`api`服务目录，执行
-
-  ```go
-  go run api.go -f etc/api.yaml
+  ```bash
+  go run form.go
   ```
 
-ps：运行整个项目时，user服务需要在task，review，form，test服务之前启动。
+ps：运行整个项目时，user 服务需要在 task，review，form，test 服务之前启动。
 

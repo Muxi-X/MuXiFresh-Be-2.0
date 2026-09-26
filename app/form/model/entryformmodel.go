@@ -115,7 +115,7 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 	if group != "" {
 		filter = append(filter, bson.E{Key: "group", Value: group})
 	}
-	err := m.conn.Find(ctx, &entryForms, filter, options.Find().SetSort(bson.D{{"name", 1}}))
+	err := m.conn.Find(ctx, &entryForms, filter, options.Find().SetSort(bson.D{{Key: "name", Value: 1}}))
 
 	switch err {
 	case nil:

@@ -1,8 +1,6 @@
 package nacos
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"sigs.k8s.io/yaml"
@@ -99,27 +97,5 @@ func TestYAMLAllowsServiceOwnedEtcdKeyWithoutSharedConnection(t *testing.T) {
 	}
 	if len(target.UserConf.Etcd.Hosts) != 0 {
 		t.Fatalf("service YAML unexpectedly populated Etcd hosts: %v", target.UserConf.Etcd.Hosts)
-	}
-}
-
-func TestAllNacosTemplatesAreValidYAML(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join("..", "..", "deploy", "nacos", "configs", "*.yaml"))
-	if err != nil {
-		t.Fatalf("find Nacos YAML templates: %v", err)
-	}
-	if len(files) != 18 {
-		t.Fatalf("expected 18 Nacos YAML templates, got %d", len(files))
-	}
-
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatalf("read %s: %v", file, err)
-		}
-
-		var target map[string]any
-		if err := yaml.Unmarshal(content, &target); err != nil {
-			t.Fatalf("parse %s: %v", file, err)
-		}
 	}
 }

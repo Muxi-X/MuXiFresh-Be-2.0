@@ -6,8 +6,8 @@ import (
 
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/internal/svc"
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/comment/pb"
-	"MuXiFresh-Be-2.0/common/globalKey"
 	usermodel "MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/globalKey"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/mon"

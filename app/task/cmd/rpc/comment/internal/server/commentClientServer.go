@@ -45,5 +45,3 @@ func (s *CommentClientServer) IsMyComment(ctx context.Context, in *pb.IsMyCommen
 	l := logic.NewIsMyCommentLogic(ctx, s.svcCtx)
 	return l.IsMyComment(in)
 }
-
-
