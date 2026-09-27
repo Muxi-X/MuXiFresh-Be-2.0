@@ -35,6 +35,13 @@ func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId); err != nil {
 		return nil, err
 	}
+	form, err := l.svcCtx.FormClient.FindOne(l.ctx, in.FormId)
+	if err != nil {
+		return nil, err
+	}
+	if err := ensureWithinDeadline(l.ctx, l.svcCtx, form.EffectiveCycle(), time.Now()); err != nil {
+		return nil, err
+	}
 	avatar, err := tool.ValidateAvatarURL(in.Avatar)
 	if err != nil {
 		return nil, err
