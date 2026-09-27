@@ -113,15 +113,15 @@ func TestCheckEntryFormWriteAccess(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	if err := checkEntryFormWriteAccess(ctx, svcCtx, owner.Hex(), formID.Hex()); err != nil {
+	if _, err := checkEntryFormWriteAccess(ctx, svcCtx, owner.Hex(), formID.Hex()); err != nil {
 		t.Fatalf("owner should write own form, got %v", err)
 	}
 	// 管理员也不能改他人报名表（审阅无需改表）
-	errNonOwner := checkEntryFormWriteAccess(ctx, svcCtx, primitive.NewObjectID().Hex(), formID.Hex())
+	_, errNonOwner := checkEntryFormWriteAccess(ctx, svcCtx, primitive.NewObjectID().Hex(), formID.Hex())
 	if errNonOwner == nil || errNonOwner.Error() != "无权修改该报名表" {
 		t.Fatalf("non-owner should be rejected with normalized error, got %v", errNonOwner)
 	}
-	errMissing := checkEntryFormWriteAccess(ctx, svcCtx, owner.Hex(), primitive.NewObjectID().Hex())
+	_, errMissing := checkEntryFormWriteAccess(ctx, svcCtx, owner.Hex(), primitive.NewObjectID().Hex())
 	if errMissing == nil || errMissing.Error() != "无权修改该报名表" {
 		t.Fatalf("missing form should reuse same error, got %v", errMissing)
 	}

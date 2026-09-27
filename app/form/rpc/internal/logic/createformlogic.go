@@ -37,7 +37,8 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if callerID != in.UserId {
 		return nil, errors.New("无权创建该报名表")
 	}
-	if err := ensureWithinDeadline(l.ctx, l.svcCtx, model.CycleOf(time.Now()), time.Now()); err != nil {
+	now := time.Now()
+	if err := ensureWithinDeadline(l.ctx, l.svcCtx, model.CycleOf(now), now); err != nil {
 		return nil, err
 	}
 	avatar, err := tool.ValidateAvatarURL(in.Avatar)

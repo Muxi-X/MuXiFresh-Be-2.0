@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/form/rpc/internal/svc"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
@@ -67,18 +68,18 @@ func checkEntryFormReadAccess(ctx context.Context, svcCtx *svc.ServiceContext, c
 	return nil
 }
 
-// checkEntryFormWriteAccess 校验调用者能否修改指定报名表：仅本人。
+// checkEntryFormWriteAccess 校验调用者能否修改指定报名表：仅本人；通过时返回该表供调用方复用，避免二次查询。
 // （管理员审阅不需要改学生报名表，避免越权写入。）
-func checkEntryFormWriteAccess(ctx context.Context, svcCtx *svc.ServiceContext, callerID, entryFormID string) error {
+func checkEntryFormWriteAccess(ctx context.Context, svcCtx *svc.ServiceContext, callerID, entryFormID string) (*model.EntryForm, error) {
 	form, err := svcCtx.FormClient.FindOne(ctx, entryFormID)
 	if err != nil {
 		if errors.Is(err, mon.ErrNotFound) {
-			return errors.New("无权修改该报名表")
+			return nil, errors.New("无权修改该报名表")
 		}
-		return err
+		return nil, err
 	}
 	if form.UserId.Hex() != callerID {
-		return errors.New("无权修改该报名表")
+		return nil, errors.New("无权修改该报名表")
 	}
-	return nil
+	return form, nil
 }

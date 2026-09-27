@@ -32,10 +32,7 @@ func (l *UpdateFormLogic) UpdateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId); err != nil {
-		return nil, err
-	}
-	form, err := l.svcCtx.FormClient.FindOne(l.ctx, in.FormId)
+	form, err := checkEntryFormWriteAccess(l.ctx, l.svcCtx, callerID, in.FormId)
 	if err != nil {
 		return nil, err
 	}
