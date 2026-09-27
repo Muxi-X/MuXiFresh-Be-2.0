@@ -21,6 +21,7 @@ Nacos 自身的地址和账号仍通过环境变量传入，因为应用必须�
 | `comment` | 评论 RPC |
 | `form-api` | 报名 API |
 | `form-rpc` | 报名 RPC |
+| `gateway` | BFF 网关（按前缀反代各 API 服务） |
 | `intro-api` | 介绍 API |
 | `intro-rpc` | 介绍 RPC |
 | `review` | 审核 API |
@@ -35,6 +36,8 @@ Nacos 自身的地址和账号仍通过环境变量传入，因为应用必须�
 | `user-rpc` | 用户 RPC |
 
 配置中的密码、JWT 密钥、域名、MongoDB 地址等均按环境填入实际值，直接维护在云端 Nacos。所有验证 JWT 的服务应使用与 `user-auth` 相同的 `JwtAuth.AccessSecret`。
+
+`gateway` 的中间件开关由代码收口：`Middlewares.Timeout` / `Middlewares.Gunzip` 固定为 `false`（透明反向代理要求响应体不被整包缓冲、请求体不被解压改写，即使 Nacos 写入 `true` 也会被覆盖）；`Middlewares.MaxBytes` 随 `MaxBytes` 是否为正自动开关。因此就中间件开关而言，`gateway` 无需在 Nacos 配置这三个字段；服务自身字段（`Name`、`Host`、`Port`、`Timeout`）、`MaxBytes` 与 `Upstreams` 仍需按服务配置填写。
 
 服务配置只保留自身语义：Etcd `Key`、Kafka `Topic/Group`、端口、JWT 和业务参数。以下公共信息只能存在于 `infra`：
 

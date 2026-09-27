@@ -23,6 +23,7 @@ Nacos 的服务配置与基础设施配置约定见 [deploy/nacos/README.md](dep
 - schedule：进度
 - form：报名表
 - test：测验
+- gateway：网关（按前缀把 `/api/v2/**` 反代到各 API 服务）
 
 ## 开发
 

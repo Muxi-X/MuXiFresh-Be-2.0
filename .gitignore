@@ -7,6 +7,7 @@ migration
 # 二进制
 app/form/api/form
 app/form/rpc/form
+app/gateway/gateway
 app/intro/api/intro
 app/intro/rpc/intro
 app/review/cmd/api/review

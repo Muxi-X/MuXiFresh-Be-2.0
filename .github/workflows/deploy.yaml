@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'app/form/**'
+      - 'app/gateway/**'
       - 'app/intro/**'
       - 'app/review/**'
       - 'app/schedule/**'
@@ -51,6 +52,7 @@ jobs:
 
           all_services=(
             form
+            gateway
             intro
             review
             schedule
@@ -146,6 +148,11 @@ jobs:
               mkdir -p app/form/rpc/etc app/form/api/etc
               : > app/form/rpc/etc/form.yaml
               : > app/form/api/etc/form-api.yaml
+              ;;
+            gateway)
+              go build -ldflags="-s -w" -o app/gateway/gateway ./app/gateway
+              mkdir -p app/gateway/etc
+              : > app/gateway/etc/gateway.yaml
               ;;
             intro)
               go build -ldflags="-s -w" -o app/intro/rpc/intro ./app/intro/rpc
@@ -388,7 +395,7 @@ jobs:
               printf '%s=%s\n' "$key" "$value" >> .env
             }
 
-            for version_key in FORM INTRO REVIEW SCHEDULE TASK TEST USER_VERSION USERAUTH; do
+            for version_key in FORM GATEWAY INTRO REVIEW SCHEDULE TASK TEST USER_VERSION USERAUTH; do
               if ! grep -q "^${version_key}=" .env; then
                 printf '%s=bootstrap\n' "$version_key" >> .env
               fi
