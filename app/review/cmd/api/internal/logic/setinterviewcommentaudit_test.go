@@ -40,11 +40,19 @@ type fakeCommentLogModel struct {
 	model.InterviewCommentLogModel
 	err      error
 	appended []*model.InterviewCommentLog
+	listFn   func(ctx context.Context, formID string, limit int64) ([]*model.InterviewCommentLog, error)
 }
 
 func (f *fakeCommentLogModel) Append(ctx context.Context, log *model.InterviewCommentLog) error {
 	f.appended = append(f.appended, log)
 	return f.err
+}
+
+func (f *fakeCommentLogModel) ListByFormID(ctx context.Context, formID string, limit int64) ([]*model.InterviewCommentLog, error) {
+	if f.listFn == nil {
+		return nil, nil
+	}
+	return f.listFn(ctx, formID, limit)
 }
 
 type fakeUserClient struct {

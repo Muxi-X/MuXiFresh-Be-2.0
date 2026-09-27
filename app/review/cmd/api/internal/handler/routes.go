@@ -38,6 +38,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/review/export",
 				Handler: ExportReviewExcelHandler(serverCtx),
 			},
+			{
+				// 查询面评历史版本
+				Method:  http.MethodGet,
+				Path:    "/review/interview_comment/history",
+				Handler: GetInterviewCommentHistoryHandler(serverCtx),
+			},
 		},
 		rest.WithJwt(serverCtx.Config.JwtAuth.AccessSecret),
 		rest.WithPrefix("/api/v2"),
