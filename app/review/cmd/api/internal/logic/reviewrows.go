@@ -84,7 +84,14 @@ func buildReviewRows(ctx context.Context, svcCtx *svc.ServiceContext, group, sch
 	if err != nil {
 		return nil, err
 	}
-	userInfos, err := svcCtx.UserInfoModel.FindByUserIds(ctx, userIds)
+	// 面评最后修改人也是 userinfo，合并进同一次查询，避免额外一次往返
+	lookupIds := append([]string(nil), userIds...)
+	for _, entryForm := range entryForms {
+		if !entryForm.InterviewCommentBy.IsZero() {
+			lookupIds = append(lookupIds, entryForm.InterviewCommentBy.Hex())
+		}
+	}
+	userInfos, err := svcCtx.UserInfoModel.FindByUserIds(ctx, dedupeStrings(lookupIds))
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +124,13 @@ func buildReviewRows(ctx context.Context, svcCtx *svc.ServiceContext, group, sch
 			continue
 		}
 
+		operatorName := ""
+		if !entryForm.InterviewCommentBy.IsZero() {
+			if operator := userInfoMap[entryForm.InterviewCommentBy.Hex()]; operator != nil {
+				operatorName = operator.Name
+			}
+		}
+
 		rows = append(rows, types.Row{
 			Name:                userInfo.Name,
 			Grade:               entryForm.Grade,
@@ -136,8 +150,37 @@ func buildReviewRows(ctx context.Context, svcCtx *svc.ServiceContext, group, sch
 			ExtraQuestion:       entryForm.ExtraQuestion,
 			InterviewComment:    entryForm.InterviewComment,
 			InterviewCommentRev: entryForm.InterviewCommentRev,
+			InterviewCommentBy:  operatorName,
+			InterviewCommentAt:  formatAuditTime(entryForm.InterviewCommentAt),
 		})
 	}
 
 	return rows, nil
+}
+
+// auditTimeLayout / auditTimeZone：面评审计时间对外固定东八区展示，避免服务器时区影响。
+const auditTimeLayout = "2006-01-02 15:04:05"
+
+var auditTimeZone = time.FixedZone("CST", 8*3600)
+
+// formatAuditTime 把审计时间格式化为东八区字符串；零值返回空串。
+func formatAuditTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.In(auditTimeZone).Format(auditTimeLayout)
+}
+
+// dedupeStrings 保序去重。
+func dedupeStrings(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	return out
 }

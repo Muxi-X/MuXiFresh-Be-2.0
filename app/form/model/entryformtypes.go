@@ -27,7 +27,11 @@ type EntryForm struct {
 	InterviewComment string `bson:"interviewComment,omitempty" json:"interviewComment,omitempty"`
 	// InterviewCommentRev 是面评的版本号，用作并发写入的乐观锁：每次写入 +1，
 	// 缺省/0 表示从未填写。
-	InterviewCommentRev int64     `bson:"interviewCommentRev,omitempty" json:"interviewCommentRev,omitempty"`
-	UpdateAt            time.Time `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
-	CreateAt            time.Time `bson:"createAt,omitempty" json:"createAt,omitempty"`
+	InterviewCommentRev int64 `bson:"interviewCommentRev,omitempty" json:"interviewCommentRev,omitempty"`
+	// InterviewCommentBy / InterviewCommentAt 记录面评最后修改人与时间，
+	// 由 SetInterviewComment 在同一次 CAS 中随面评原子写入，供审阅列表展示。
+	InterviewCommentBy primitive.ObjectID `bson:"interviewCommentBy,omitempty" json:"interviewCommentBy,omitempty"`
+	InterviewCommentAt time.Time          `bson:"interviewCommentAt,omitempty" json:"interviewCommentAt,omitempty"`
+	UpdateAt           time.Time          `bson:"updateAt,omitempty" json:"updateAt,omitempty"`
+	CreateAt           time.Time          `bson:"createAt,omitempty" json:"createAt,omitempty"`
 }

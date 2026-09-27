@@ -7,16 +7,18 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	externalModel1 "MuXiFresh-Be-2.0/app/userauth/model"
 	"MuXiFresh-Be-2.0/common/rpcauth"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
-	Config         config.Config
-	EntryFormModel externalModel2.EntryFormModel
-	UserClient     userclient.UserClient
-	ScheduleClient externalModel3.ScheduleModel
-	UserInfoModel  externalModel1.UserInfoModel
+	Config                   config.Config
+	EntryFormModel           externalModel2.EntryFormModel
+	UserClient               userclient.UserClient
+	ScheduleClient           externalModel3.ScheduleModel
+	UserInfoModel            externalModel1.UserInfoModel
+	InterviewCommentLogModel externalModel2.InterviewCommentLogModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -28,11 +30,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		zrpc.WithDialOption(grpc.WithChainUnaryInterceptor(clientInterceptor)),
 	}
 
+	// 面评历史查询索引：只影响查询性能，失败只记日志，不阻塞启动。
+	if err := EnsureInterviewCommentLogIndexes(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB); err != nil {
+		logx.Errorf("EnsureInterviewCommentLogIndexes failed: %v", err)
+	}
+
 	return &ServiceContext{
-		Config:         c,
-		EntryFormModel: externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
-		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
-		ScheduleClient: externalModel3.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
-		UserInfoModel:  externalModel1.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		Config:                   c,
+		EntryFormModel:           externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
+		UserClient:               userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
+		ScheduleClient:           externalModel3.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
+		UserInfoModel:            externalModel1.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		InterviewCommentLogModel: externalModel2.NewInterviewCommentLogModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, interviewCommentLogCollection),
 	}
 }

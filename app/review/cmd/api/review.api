@@ -40,6 +40,8 @@ type Row {
 	ExtraQuestion       string `json:"extra_question"`
 	InterviewComment    string `json:"interview_comment"`
 	InterviewCommentRev int64  `json:"interview_comment_rev"`
+	InterviewCommentBy  string `json:"interview_comment_by"`
+	InterviewCommentAt  string `json:"interview_comment_at"`
 }
 
 type GetReviewResp {
@@ -69,6 +71,25 @@ type SetInterviewCommentReq {
 type SetInterviewCommentResp {
 	Flag bool  `json:"flag"`
 	Rev  int64 `json:"rev"`
+}
+
+//查询面评历史版本（按 rev 升序；仅管理员）
+type GetInterviewCommentHistoryReq {
+	Authorization string `header:"Authorization"`
+	FormID        string `form:"form_id"`
+	Limit         int64  `form:"limit,optional,default=50"`
+}
+
+type InterviewCommentVersion {
+	Rev          int64  `json:"rev"`
+	Comment      string `json:"comment"`
+	OperatorName string `json:"operator_name"`
+	OperatorType string `json:"operator_type"`
+	OperatedAt   string `json:"operated_at"`
+}
+
+type GetInterviewCommentHistoryResp {
+	Rows []InterviewCommentVersion `json:"rows"`
 }
 
 // 导出 Excel 请求
@@ -102,5 +123,9 @@ service review {
 	@doc "一键导出 Excel（包含每个组的名单）。返回 xlsx 二进制流（application/vnd.openxmlformats-officedocument.spreadsheetml.sheet），文件名在 Content-Disposition 响应头"
 	@handler ExportReviewExcel
 	post /review/export (ExportReviewExcelReq)
+
+	@doc "查询面评历史版本"
+	@handler GetInterviewCommentHistory
+	get /review/interview_comment/history (GetInterviewCommentHistoryReq) returns (GetInterviewCommentHistoryResp)
 }
 

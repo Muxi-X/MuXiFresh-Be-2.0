@@ -50,6 +50,8 @@ type Row struct {
 	ExtraQuestion       string `json:"extra_question"`
 	InterviewComment    string `json:"interview_comment"`
 	InterviewCommentRev int64  `json:"interview_comment_rev"`
+	InterviewCommentBy  string `json:"interview_comment_by"`
+	InterviewCommentAt  string `json:"interview_comment_at"`
 }
 
 type SetAdmissionStatusReq struct {
@@ -72,4 +74,22 @@ type SetInterviewCommentReq struct {
 type SetInterviewCommentResp struct {
 	Flag bool  `json:"flag"`
 	Rev  int64 `json:"rev"`
+}
+
+type GetInterviewCommentHistoryReq struct {
+	Authorization string `header:"Authorization"`
+	FormID        string `form:"form_id"`
+	Limit         int64  `form:"limit,optional,default=50"`
+}
+
+type InterviewCommentVersion struct {
+	Rev          int64  `json:"rev"`
+	Comment      string `json:"comment"`
+	OperatorName string `json:"operator_name"`
+	OperatorType string `json:"operator_type"`
+	OperatedAt   string `json:"operated_at"`
+}
+
+type GetInterviewCommentHistoryResp struct {
+	Rows []InterviewCommentVersion `json:"rows"`
 }

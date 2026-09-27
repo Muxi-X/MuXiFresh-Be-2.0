@@ -5,7 +5,6 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/mon"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
@@ -26,9 +25,11 @@ type (
 		// FindByUserIdAndCycle 返回指定用户在指定届次的报名表；无则 ErrNotFound。
 		FindByUserIdAndCycle(ctx context.Context, userId, cycle string) (*EntryForm, error)
 		FindByGroup(ctx context.Context, group string, school string, grade string, startDate time.Time, endDate time.Time) ([]*EntryForm, error)
-		// SetInterviewComment 以乐观锁方式只更新面评字段与版本号，不触碰报名表其它字段；
-		// 空串可清空面评。仅当当前版本等于 expectedRev 时才写入，命中 0 条表示版本冲突或文档不存在。
-		SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64) (*mongo.UpdateResult, error)
+		// SetInterviewComment 以乐观锁方式只更新面评字段、最后修改人/时间与版本号，不触碰报名表其它字段；
+		// 空串可清空面评。仅当当前版本等于 expectedRev 时才写入。
+		// at 为本次写入时间（由调用方提供，保证与审计日志同一时刻）；
+		// 返回写入后的版本号与是否命中：matched=false 表示版本冲突或文档不存在，由调用方读回区分。
+		SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (newRev int64, matched bool, err error)
 	}
 
 	customEntryFormModel struct {
@@ -132,14 +133,15 @@ func (m *customEntryFormModel) FindByGroup(ctx context.Context, group string, sc
 	}
 }
 
-// SetInterviewComment 用显式 $set 只写面评字段，避免复用 Update 时把整个结构体
+// SetInterviewComment 用显式 $set 只写面评与最后修改人/时间，避免复用 Update 时把整个结构体
 // 写回而误触其它字段；用 bson.M 而非结构体，空串也会被写入，所以可以清空面评。
-// 过滤条件带上 interviewCommentRev 做 CAS，命中才 +1，从而拒绝基于旧版本的覆盖写。
+// 过滤条件带上 interviewCommentRev 做 CAS，命中才 $inc +1，从而拒绝基于旧版本的覆盖写。
 // expectedRev 为 0 时要额外匹配「字段不存在」的老文档——Mongo 的 {field: 0} 不匹配缺失字段。
-func (m *customEntryFormModel) SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
+// 返回写入后的版本号与是否命中（未命中时版本号无意义，由调用方读回区分不存在/冲突）。
+func (m *customEntryFormModel) SetInterviewComment(ctx context.Context, formID string, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
 	oid, err := primitive.ObjectIDFromHex(formID)
 	if err != nil {
-		return nil, ErrInvalidObjectId
+		return 0, false, ErrInvalidObjectId
 	}
 
 	filter := bson.M{"_id": oid}
@@ -152,9 +154,20 @@ func (m *customEntryFormModel) SetInterviewComment(ctx context.Context, formID s
 		filter["interviewCommentRev"] = expectedRev
 	}
 
-	return m.conn.UpdateOne(ctx, filter,
+	res, err := m.conn.UpdateOne(ctx, filter,
 		bson.M{
-			"$set": bson.M{"interviewComment": comment},
+			"$set": bson.M{
+				"interviewComment":   comment,
+				"interviewCommentBy": operatorID,
+				"interviewCommentAt": at,
+			},
 			"$inc": bson.M{"interviewCommentRev": 1},
 		})
+	if err != nil {
+		return 0, false, err
+	}
+	if res.MatchedCount == 0 {
+		return 0, false, nil
+	}
+	return expectedRev + 1, true, nil
 }

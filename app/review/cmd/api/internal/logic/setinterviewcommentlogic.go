@@ -9,8 +9,10 @@ import (
 	"MuXiFresh-Be-2.0/common/globalKey"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // maxInterviewCommentLen 是面评正文的字符数（rune）上限，防止单文档过大。
@@ -32,14 +34,19 @@ func NewSetInterviewCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext
 
 func (l *SetInterviewCommentLogic) SetInterviewComment(req *types.SetInterviewCommentReq) (resp *types.SetInterviewCommentResp, err error) {
 	//管理员认证
+	userId := ctxData.GetUserIdFromCtx(l.ctx)
 	getUserTypeResp, err := l.svcCtx.UserClient.GetUserType(l.ctx, &userclient.GetUserTypeReq{
-		UserId: ctxData.GetUserIdFromCtx(l.ctx),
+		UserId: userId,
 	})
 	if err != nil {
 		return nil, err
 	}
 	if getUserTypeResp.UserType != globalKey.Admin && getUserTypeResp.UserType != globalKey.SuperAdmin {
 		return nil, errors.New("permission denied")
+	}
+	operatorID, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return nil, errors.New("非法的用户身份")
 	}
 
 	if req.Rev < 0 {
@@ -50,17 +57,41 @@ func (l *SetInterviewCommentLogic) SetInterviewComment(req *types.SetInterviewCo
 	}
 
 	// 乐观锁写入：只有当前版本等于 req.Rev 才成功，避免基于旧版本的覆盖
-	ret, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment, req.Rev)
+	now := time.Now()
+	newRev, matched, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment, req.Rev, operatorID, now)
 	if err != nil {
 		return nil, err
 	}
-	if ret.MatchedCount == 0 {
+	if !matched {
 		// 未命中可能是版本冲突，也可能是报名表不存在，读一次加以区分
 		_, findErr := l.svcCtx.EntryFormModel.FindOne(l.ctx, req.FormID)
 		return nil, commentWriteError(findErr)
 	}
 
-	return &types.SetInterviewCommentResp{Flag: true, Rev: req.Rev + 1}, nil
+	l.appendHistory(req, operatorID, getUserTypeResp.UserType, newRev, now)
+	return &types.SetInterviewCommentResp{Flag: true, Rev: newRev}, nil
+}
+
+// appendHistory 追加一条面评历史版本（写入后的全文快照），供数据库侧查档。
+// at 与面评写入是同一时刻，保证"最后修改时间"与历史末条一致。
+// best-effort：日志失败不影响已成功的面评写入，仅记错误。
+func (l *SetInterviewCommentLogic) appendHistory(req *types.SetInterviewCommentReq, operatorID primitive.ObjectID, operatorType string, rev int64, at time.Time) {
+	formID, err := primitive.ObjectIDFromHex(req.FormID)
+	if err != nil {
+		l.Errorf("append interview comment log: invalid form id %q: %v", req.FormID, err)
+		return
+	}
+
+	if err := l.svcCtx.InterviewCommentLogModel.Append(l.ctx, &model.InterviewCommentLog{
+		FormID:       formID,
+		Rev:          rev,
+		Comment:      req.Comment,
+		OperatorID:   operatorID,
+		OperatorType: operatorType,
+		OperatedAt:   at,
+	}); err != nil {
+		l.Errorf("append interview comment log failed: %v", err)
+	}
 }
 
 // commentWriteError 把 CAS 未命中后的读回结果映射为对外错误：
