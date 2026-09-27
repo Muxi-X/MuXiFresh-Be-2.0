@@ -12,11 +12,12 @@ import (
 )
 
 type ServiceContext struct {
-	Config         config.Config
-	EntryFormModel externalModel2.EntryFormModel
-	UserClient     userclient.UserClient
-	ScheduleClient externalModel3.ScheduleModel
-	UserInfoModel  externalModel1.UserInfoModel
+	Config                   config.Config
+	EntryFormModel           externalModel2.EntryFormModel
+	UserClient               userclient.UserClient
+	ScheduleClient           externalModel3.ScheduleModel
+	UserInfoModel            externalModel1.UserInfoModel
+	InterviewCommentLogModel externalModel2.InterviewCommentLogModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -29,10 +30,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config:         c,
-		EntryFormModel: externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
-		UserClient:     userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
-		ScheduleClient: externalModel3.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
-		UserInfoModel:  externalModel1.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		Config:                   c,
+		EntryFormModel:           externalModel2.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
+		UserClient:               userclient.NewUserClient(zrpc.MustNewClient(c.UserConf, rpcOpts...)),
+		ScheduleClient:           externalModel3.NewScheduleModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "schedule"),
+		UserInfoModel:            externalModel1.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		InterviewCommentLogModel: externalModel2.NewInterviewCommentLogModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "interview_comment_log"),
 	}
 }
