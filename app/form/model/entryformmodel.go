@@ -17,7 +17,9 @@ type (
 	// and implement the added methods in customEntryFormModel.
 	EntryFormModel interface {
 		entryFormModel
-		InsertReturnID(ctx context.Context, data *EntryForm) (interface{}, error)
+		// InsertReturnID 用调用方传入的 now 作为创建时间与届次来源，
+		// 保证与提交时的截止校验取同一时刻，避免跨越 7/1 分界时校验届次与落库届次不一致。
+		InsertReturnID(ctx context.Context, data *EntryForm, now time.Time) (interface{}, error)
 		// FindOneByUserId 返回该用户最新一届（createAt 最大）的报名表。
 		// 同一用户跨届可存在多份表，故必须排序后再取，否则可能取到往届。
 		FindOneByUserId(ctx context.Context, userId string) (*EntryForm, error)
@@ -42,9 +44,8 @@ func NewEntryFormModel(url, db, collection string) EntryFormModel {
 	}
 }
 
-func (m *defaultEntryFormModel) InsertReturnID(ctx context.Context, data *EntryForm) (interface{}, error) {
+func (m *defaultEntryFormModel) InsertReturnID(ctx context.Context, data *EntryForm, now time.Time) (interface{}, error) {
 	if data.ID.IsZero() {
-		now := time.Now()
 		data.ID = primitive.NewObjectID()
 		data.CreateAt = now
 		data.UpdateAt = now

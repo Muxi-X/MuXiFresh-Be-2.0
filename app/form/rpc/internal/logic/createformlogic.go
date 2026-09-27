@@ -61,7 +61,7 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 		Knowledge:     in.Knowledge,
 		SelfIntro:     in.SelfIntro,
 		ExtraQuestion: in.ExtraQuestion,
-	})
+	}, now)
 
 	if err != nil {
 		return nil, err
