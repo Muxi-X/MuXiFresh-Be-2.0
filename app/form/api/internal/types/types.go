@@ -47,3 +47,28 @@ type CheckResp struct {
 	SelfIntro     string `json:"self_intro"`
 	ExtraQuestion string `json:"extra_question"`
 }
+
+// 查询报名截止时间；cycle 省略时取当前届次
+type GetRecruitDeadlineReq struct {
+	Cycle string `form:"cycle,optional"`
+}
+
+type GetRecruitDeadlineResp struct {
+	Cycle    string `json:"cycle"`
+	Deadline string `json:"deadline"`
+	Rev      int64  `json:"rev"`
+}
+
+// 设置报名截止时间（rev 为乐观锁版本号，首次写入传 0）
+type SetRecruitDeadlineReq struct {
+	Authorization string `header:"Authorization"`
+	Cycle         string `json:"cycle"`
+	Deadline      string `json:"deadline"`
+	Rev           int64  `json:"rev,optional,default=0"`
+}
+
+type SetRecruitDeadlineResp struct {
+	Cycle    string `json:"cycle"`
+	Deadline string `json:"deadline"`
+	Rev      int64  `json:"rev"`
+}

@@ -14,6 +14,17 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		[]rest.Route{
 			{
 				Method:  http.MethodGet,
+				Path:    "/recruit/deadline",
+				Handler: GetRecruitDeadlineHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/v2"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
 				Path:    "/form/judge",
 				Handler: JudgeUserHandler(serverCtx),
 			},
@@ -31,6 +42,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodGet,
 				Path:    "/form/view",
 				Handler: CheckFormHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPut,
+				Path:    "/recruit/deadline",
+				Handler: SetRecruitDeadlineHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.JwtAuth.AccessSecret),

@@ -9,9 +9,10 @@ import (
 )
 
 type ServiceContext struct {
-	Config        config.Config
-	FormClient    model.EntryFormModel
-	UserInfoModel userauthModel.UserInfoModel
+	Config              config.Config
+	FormClient          model.EntryFormModel
+	UserInfoModel       userauthModel.UserInfoModel
+	RecruitSettingModel model.RecruitSettingModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -23,8 +24,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config:        c,
-		FormClient:    model.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
-		UserInfoModel: userauthModel.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		Config:              c,
+		FormClient:          model.NewEntryFormModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "entry_form"),
+		UserInfoModel:       userauthModel.NewUserInfoModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "userinfo"),
+		RecruitSettingModel: model.NewRecruitSettingModel(c.Infra.MongoDB.URL, c.Infra.MongoDB.DB, "recruit_setting"),
 	}
 }

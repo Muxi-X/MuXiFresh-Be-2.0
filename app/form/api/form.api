@@ -56,6 +56,41 @@ type CheckResp {
 	ExtraQuestion string `json:"extra_question"`
 }
 
+//查询报名截止时间；cycle 省略时取当前届次
+type GetRecruitDeadlineReq {
+	Cycle string `form:"cycle,optional"`
+}
+
+type GetRecruitDeadlineResp {
+	Cycle    string `json:"cycle"`
+	Deadline string `json:"deadline"`
+	Rev      int64  `json:"rev"`
+}
+
+//设置报名截止时间（rev 为乐观锁版本号，首次写入传 0）
+type SetRecruitDeadlineReq {
+	Authorization string `header:"Authorization"`
+	Cycle         string `json:"cycle"`
+	Deadline      string `json:"deadline"`
+	Rev           int64  `json:"rev,optional,default=0"`
+}
+
+type SetRecruitDeadlineResp {
+	Cycle    string `json:"cycle"`
+	Deadline string `json:"deadline"`
+	Rev      int64  `json:"rev"`
+}
+
+@server(
+	prefix: api/v2
+)
+
+service form-api {
+	@doc"查询报名截止时间"
+	@handler GetRecruitDeadline
+	get /recruit/deadline (GetRecruitDeadlineReq) returns(GetRecruitDeadlineResp)
+}
+
 @server(
 	prefix: api/v2
 	jwt: JwtAuth
@@ -77,5 +112,9 @@ service form-api {
 	@doc"查看表"
 	@handler CheckForm
 	get /form/view(CheckReq)returns(CheckResp)
+
+	@doc"设置报名截止时间"
+	@handler SetRecruitDeadline
+	put /recruit/deadline (SetRecruitDeadlineReq) returns(SetRecruitDeadlineResp)
 
 }

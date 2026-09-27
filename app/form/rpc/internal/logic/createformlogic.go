@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -35,6 +37,10 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 	if callerID != in.UserId {
 		return nil, errors.New("无权创建该报名表")
 	}
+	now := time.Now()
+	if err := ensureWithinDeadline(l.ctx, l.svcCtx, model.CycleOf(now), now); err != nil {
+		return nil, err
+	}
 	avatar, err := tool.ValidateAvatarURL(in.Avatar)
 	if err != nil {
 		return nil, err
@@ -55,7 +61,7 @@ func (l *CreateFormLogic) CreateForm(in *pb.CreateReq) (*pb.CreateResp, error) {
 		Knowledge:     in.Knowledge,
 		SelfIntro:     in.SelfIntro,
 		ExtraQuestion: in.ExtraQuestion,
-	})
+	}, now)
 
 	if err != nil {
 		return nil, err
