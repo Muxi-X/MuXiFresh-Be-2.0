@@ -50,6 +50,8 @@ type Row struct {
 	ExtraQuestion       string `json:"extra_question"`
 	InterviewComment    string `json:"interview_comment"`
 	InterviewCommentRev int64  `json:"interview_comment_rev"`
+	InterviewCommentBy  string `json:"interview_comment_by"`
+	InterviewCommentAt  string `json:"interview_comment_at"`
 }
 
 type SetAdmissionStatusReq struct {

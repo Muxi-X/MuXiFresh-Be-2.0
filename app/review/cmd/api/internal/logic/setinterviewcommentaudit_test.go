@@ -21,12 +21,12 @@ import (
 
 type fakeEntryFormModel struct {
 	model.EntryFormModel
-	setFn     func(ctx context.Context, formID, comment string, expectedRev int64) (*mongo.UpdateResult, error)
+	setFn     func(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error)
 	findOneFn func(ctx context.Context, id string) (*model.EntryForm, error)
 }
 
-func (f *fakeEntryFormModel) SetInterviewComment(ctx context.Context, formID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
-	return f.setFn(ctx, formID, comment, expectedRev)
+func (f *fakeEntryFormModel) SetInterviewComment(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
+	return f.setFn(ctx, formID, comment, expectedRev, operatorID)
 }
 
 func (f *fakeEntryFormModel) FindOne(ctx context.Context, id string) (*model.EntryForm, error) {
@@ -72,9 +72,9 @@ func TestSetInterviewComment_AppendsAuditLog(t *testing.T) {
 	adminID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
-			if gotFormID != formID.Hex() || comment != "一面：基础扎实" || expectedRev != 2 {
-				t.Fatalf("set called with unexpected args formID=%q comment=%q rev=%d", gotFormID, comment, expectedRev)
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
+			if gotFormID != formID.Hex() || comment != "一面：基础扎实" || expectedRev != 2 || operatorID != adminID {
+				t.Fatalf("set called with unexpected args formID=%q comment=%q rev=%d operator=%v", gotFormID, comment, expectedRev, operatorID)
 			}
 			return &mongo.UpdateResult{MatchedCount: 1}, nil
 		},
@@ -103,7 +103,7 @@ func TestSetInterviewComment_AppendsAuditLog(t *testing.T) {
 func TestSetInterviewComment_ConflictWritesNoLog(t *testing.T) {
 	formID := primitive.NewObjectID()
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
 			return &mongo.UpdateResult{MatchedCount: 0}, nil
 		},
 		findOneFn: func(ctx context.Context, id string) (*model.EntryForm, error) {
@@ -125,7 +125,7 @@ func TestSetInterviewComment_ConflictWritesNoLog(t *testing.T) {
 func TestSetInterviewComment_NonAdminWritesNoLog(t *testing.T) {
 	setCalled := false
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
 			setCalled = true
 			return &mongo.UpdateResult{MatchedCount: 1}, nil
 		},
@@ -146,7 +146,7 @@ func TestSetInterviewComment_LogFailureStillSucceeds(t *testing.T) {
 	adminID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
 			return &mongo.UpdateResult{MatchedCount: 1}, nil
 		},
 	}
@@ -165,7 +165,7 @@ func TestSetInterviewComment_LogFailureStillSucceeds(t *testing.T) {
 func TestSetInterviewComment_OverLimitWritesNoLog(t *testing.T) {
 	setCalled := false
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
 			setCalled = true
 			return &mongo.UpdateResult{MatchedCount: 1}, nil
 		},

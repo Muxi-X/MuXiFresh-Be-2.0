@@ -56,7 +56,7 @@ func (l *SetInterviewCommentLogic) SetInterviewComment(req *types.SetInterviewCo
 	}
 
 	// 乐观锁写入：只有当前版本等于 req.Rev 才成功，避免基于旧版本的覆盖
-	ret, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment, req.Rev)
+	ret, err := l.svcCtx.EntryFormModel.SetInterviewComment(l.ctx, req.FormID, req.Comment, req.Rev, operatorID)
 	if err != nil {
 		return nil, err
 	}
