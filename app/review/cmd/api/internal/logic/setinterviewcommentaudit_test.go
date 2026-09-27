@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/review/cmd/api/internal/svc"
@@ -15,18 +16,17 @@ import (
 
 	"github.com/zeromicro/go-zero/core/stores/mon"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 )
 
 type fakeEntryFormModel struct {
 	model.EntryFormModel
-	setFn     func(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error)
+	setFn     func(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error)
 	findOneFn func(ctx context.Context, id string) (*model.EntryForm, error)
 }
 
-func (f *fakeEntryFormModel) SetInterviewComment(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
-	return f.setFn(ctx, formID, comment, expectedRev, operatorID)
+func (f *fakeEntryFormModel) SetInterviewComment(ctx context.Context, formID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
+	return f.setFn(ctx, formID, comment, expectedRev, operatorID, at)
 }
 
 func (f *fakeEntryFormModel) FindOne(ctx context.Context, id string) (*model.EntryForm, error) {
@@ -79,12 +79,14 @@ func commentSvc(userType string, form model.EntryFormModel, log model.InterviewC
 func TestSetInterviewComment_AppendsAuditLog(t *testing.T) {
 	adminID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
+	var writtenAt time.Time
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
-			if gotFormID != formID.Hex() || comment != "一面：基础扎实" || expectedRev != 2 || operatorID != adminID {
-				t.Fatalf("set called with unexpected args formID=%q comment=%q rev=%d operator=%v", gotFormID, comment, expectedRev, operatorID)
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
+			if gotFormID != formID.Hex() || comment != "一面：基础扎实" || expectedRev != 2 || operatorID != adminID || at.IsZero() {
+				t.Fatalf("set called with unexpected args formID=%q comment=%q rev=%d operator=%v at=%v", gotFormID, comment, expectedRev, operatorID, at)
 			}
-			return &mongo.UpdateResult{MatchedCount: 1}, nil
+			writtenAt = at
+			return 7, true, nil
 		},
 	}
 	logModel := &fakeCommentLogModel{}
@@ -94,25 +96,30 @@ func TestSetInterviewComment_AppendsAuditLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admin write should succeed, got %v", err)
 	}
-	if resp.Rev != 3 {
-		t.Fatalf("resp rev = %d, want 3", resp.Rev)
+	// rev 应来自模型返回值（7），而非逻辑层自行 +1（会是 3），以验出硬编码回归
+	if resp.Rev != 7 {
+		t.Fatalf("resp rev = %d, want 7", resp.Rev)
 	}
 
 	if len(logModel.appended) != 1 {
 		t.Fatalf("expected one history entry, got %d", len(logModel.appended))
 	}
 	entry := logModel.appended[0]
-	if entry.FormID != formID || entry.Rev != 3 || entry.Comment != "一面：基础扎实" ||
+	if entry.FormID != formID || entry.Rev != 7 || entry.Comment != "一面：基础扎实" ||
 		entry.OperatorID != adminID || entry.OperatorType != globalKey.Admin {
 		t.Fatalf("unexpected history entry %+v", entry)
+	}
+	// 历史时间应与面评写入时间一致（同一个 now）
+	if entry.OperatedAt.IsZero() || !entry.OperatedAt.Equal(writtenAt) {
+		t.Fatalf("history operatedAt %v should equal write time %v", entry.OperatedAt, writtenAt)
 	}
 }
 
 func TestSetInterviewComment_ConflictWritesNoLog(t *testing.T) {
 	formID := primitive.NewObjectID()
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
-			return &mongo.UpdateResult{MatchedCount: 0}, nil
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
+			return 0, false, nil
 		},
 		findOneFn: func(ctx context.Context, id string) (*model.EntryForm, error) {
 			return &model.EntryForm{ID: formID}, nil
@@ -133,9 +140,9 @@ func TestSetInterviewComment_ConflictWritesNoLog(t *testing.T) {
 func TestSetInterviewComment_NonAdminWritesNoLog(t *testing.T) {
 	setCalled := false
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
 			setCalled = true
-			return &mongo.UpdateResult{MatchedCount: 1}, nil
+			return 1, true, nil
 		},
 	}
 	logModel := &fakeCommentLogModel{}
@@ -154,8 +161,8 @@ func TestSetInterviewComment_LogFailureStillSucceeds(t *testing.T) {
 	adminID := primitive.NewObjectID()
 	formID := primitive.NewObjectID()
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
-			return &mongo.UpdateResult{MatchedCount: 1}, nil
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
+			return 1, true, nil
 		},
 	}
 	logModel := &fakeCommentLogModel{err: errors.New("db down")}
@@ -173,9 +180,9 @@ func TestSetInterviewComment_LogFailureStillSucceeds(t *testing.T) {
 func TestSetInterviewComment_OverLimitWritesNoLog(t *testing.T) {
 	setCalled := false
 	form := &fakeEntryFormModel{
-		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID) (*mongo.UpdateResult, error) {
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
 			setCalled = true
-			return &mongo.UpdateResult{MatchedCount: 1}, nil
+			return 1, true, nil
 		},
 	}
 	logModel := &fakeCommentLogModel{}
@@ -201,5 +208,24 @@ func TestSetInterviewComment_InvalidOperatorRejected(t *testing.T) {
 	}
 	if len(logModel.appended) != 0 {
 		t.Fatal("no history should be written for invalid operator")
+	}
+}
+
+func TestSetInterviewComment_ModelErrorPassthrough(t *testing.T) {
+	sentinel := errors.New("db down")
+	form := &fakeEntryFormModel{
+		setFn: func(ctx context.Context, gotFormID, comment string, expectedRev int64, operatorID primitive.ObjectID, at time.Time) (int64, bool, error) {
+			return 0, false, sentinel
+		},
+	}
+	logModel := &fakeCommentLogModel{}
+	l := NewSetInterviewCommentLogic(commentCtx(primitive.NewObjectID().Hex()), commentSvc(globalKey.Admin, form, logModel))
+
+	_, err := l.SetInterviewComment(&types.SetInterviewCommentReq{FormID: primitive.NewObjectID().Hex(), Comment: "x", Rev: 0})
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("model error should pass through, got %v", err)
+	}
+	if len(logModel.appended) != 0 {
+		t.Fatal("no history should be written on model error")
 	}
 }
