@@ -99,7 +99,7 @@ jobs:
     if: needs.changes.outputs.services != '[]'
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       # 跨国推送镜像共享出口带宽，全量并发会互相争抢导致断连/超时。
@@ -119,17 +119,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install UPX and Configure Docker
+      - name: Install UPX
         run: |
           set -euo pipefail
           sudo apt-get update -qq && sudo apt-get install -y -qq upx
-          # 限制 Docker 串行单连接上传，集中跨境出口带宽，避免多 Layer 并发争抢丢包
-          sudo bash -c 'cat > /etc/docker/daemon.json <<EOF
-          {
-            "max-concurrent-uploads": 1
-          }
-          EOF'
-          sudo systemctl restart docker
 
       # The repository Dockerfiles package pre-built binaries, so compile the
       # selected service before creating its image. Empty config files only
@@ -143,41 +136,41 @@ jobs:
 
           case "$SERVICE" in
             form)
-              go build -ldflags="-s -w" -o app/form/rpc/form ./app/form/rpc
-              go build -ldflags="-s -w" -o app/form/api/form ./app/form/api
+              go build -ldflags="-s -w -buildid=" -o app/form/rpc/form ./app/form/rpc
+              go build -ldflags="-s -w -buildid=" -o app/form/api/form ./app/form/api
               mkdir -p app/form/rpc/etc app/form/api/etc
               : > app/form/rpc/etc/form.yaml
               : > app/form/api/etc/form-api.yaml
               ;;
             gateway)
-              go build -ldflags="-s -w" -o app/gateway/gateway ./app/gateway
+              go build -ldflags="-s -w -buildid=" -o app/gateway/gateway ./app/gateway
               mkdir -p app/gateway/etc
               : > app/gateway/etc/gateway.yaml
               ;;
             intro)
-              go build -ldflags="-s -w" -o app/intro/rpc/intro ./app/intro/rpc
-              go build -ldflags="-s -w" -o app/intro/api/intro ./app/intro/api
+              go build -ldflags="-s -w -buildid=" -o app/intro/rpc/intro ./app/intro/rpc
+              go build -ldflags="-s -w -buildid=" -o app/intro/api/intro ./app/intro/api
               mkdir -p app/intro/rpc/etc app/intro/api/etc
               : > app/intro/rpc/etc/intro.yaml
               : > app/intro/api/etc/intro-api.yaml
               ;;
             review)
-              go build -ldflags="-s -w" -o app/review/cmd/api/review ./app/review/cmd/api
+              go build -ldflags="-s -w -buildid=" -o app/review/cmd/api/review ./app/review/cmd/api
               mkdir -p app/review/cmd/api/etc
               : > app/review/cmd/api/etc/review.yaml
               ;;
             schedule)
-              go build -ldflags="-s -w" -o app/schedule/rpc/schedule ./app/schedule/rpc
-              go build -ldflags="-s -w" -o app/schedule/api/schedule ./app/schedule/api
+              go build -ldflags="-s -w -buildid=" -o app/schedule/rpc/schedule ./app/schedule/rpc
+              go build -ldflags="-s -w -buildid=" -o app/schedule/api/schedule ./app/schedule/api
               mkdir -p app/schedule/rpc/etc app/schedule/api/etc
               : > app/schedule/rpc/etc/schedule.yaml
               : > app/schedule/api/etc/schedule-api.yaml
               ;;
             task)
-              go build -ldflags="-s -w" -o app/task/cmd/rpc/assignment/assignment ./app/task/cmd/rpc/assignment
-              go build -ldflags="-s -w" -o app/task/cmd/rpc/comment/comment ./app/task/cmd/rpc/comment
-              go build -ldflags="-s -w" -o app/task/cmd/rpc/submission/submission ./app/task/cmd/rpc/submission
-              go build -ldflags="-s -w" -o app/task/cmd/api/task ./app/task/cmd/api
+              go build -ldflags="-s -w -buildid=" -o app/task/cmd/rpc/assignment/assignment ./app/task/cmd/rpc/assignment
+              go build -ldflags="-s -w -buildid=" -o app/task/cmd/rpc/comment/comment ./app/task/cmd/rpc/comment
+              go build -ldflags="-s -w -buildid=" -o app/task/cmd/rpc/submission/submission ./app/task/cmd/rpc/submission
+              go build -ldflags="-s -w -buildid=" -o app/task/cmd/api/task ./app/task/cmd/api
               mkdir -p \
                 app/task/cmd/rpc/assignment/etc \
                 app/task/cmd/rpc/comment/etc \
@@ -189,22 +182,22 @@ jobs:
               : > app/task/cmd/api/etc/task.yaml
               ;;
             test)
-              go build -ldflags="-s -w" -o app/test/rpc/test ./app/test/rpc
-              go build -ldflags="-s -w" -o app/test/api/test ./app/test/api
+              go build -ldflags="-s -w -buildid=" -o app/test/rpc/test ./app/test/rpc
+              go build -ldflags="-s -w -buildid=" -o app/test/api/test ./app/test/api
               mkdir -p app/test/rpc/etc app/test/api/etc
               : > app/test/rpc/etc/test.yaml
               : > app/test/api/etc/test-api.yaml
               ;;
             user)
-              go build -ldflags="-s -w" -o app/user/cmd/rpc/user/user ./app/user/cmd/rpc/user
-              go build -ldflags="-s -w" -o app/user/cmd/api/user ./app/user/cmd/api
+              go build -ldflags="-s -w -buildid=" -o app/user/cmd/rpc/user/user ./app/user/cmd/rpc/user
+              go build -ldflags="-s -w -buildid=" -o app/user/cmd/api/user ./app/user/cmd/api
               mkdir -p app/user/cmd/rpc/user/etc app/user/cmd/api/etc
               : > app/user/cmd/rpc/user/etc/user.yaml
               : > app/user/cmd/api/etc/user.yaml
               ;;
             userauth)
-              go build -ldflags="-s -w" -o app/userauth/cmd/rpc/accountCenter/accountCenter ./app/userauth/cmd/rpc/accountCenter
-              go build -ldflags="-s -w" -o app/userauth/cmd/api/user-auth ./app/userauth/cmd/api
+              go build -ldflags="-s -w -buildid=" -o app/userauth/cmd/rpc/accountCenter/accountCenter ./app/userauth/cmd/rpc/accountCenter
+              go build -ldflags="-s -w -buildid=" -o app/userauth/cmd/api/user-auth ./app/userauth/cmd/api
               mkdir -p app/userauth/cmd/rpc/accountCenter/etc app/userauth/cmd/api/etc
               : > app/userauth/cmd/rpc/accountCenter/etc/accountCenter.yaml
               : > app/userauth/cmd/api/etc/user-auth.yaml
@@ -220,9 +213,9 @@ jobs:
           # register that flag.
           sed -i -E 's/[[:space:]]+-f[[:space:]]+etc\/[^[:space:]]+//g' "app/${SERVICE}/start.sh"
 
-          # 使用 UPX 快速压缩二进制（体积降低约 70%），极大减轻跨国传输负载
+          # 使用 UPX 最大压缩二进制，减小跨境上传体积
           echo "Compressing binaries with UPX..."
-          find "app/${SERVICE}" -type f -executable -not -name "*.sh" -exec upx -1 {} + 2>/dev/null || true
+          find "app/${SERVICE}" -type f -executable -not -name "*.sh" -exec upx --best {} + 2>/dev/null || true
 
       # docker/login-action 内部只执行一次 docker login，登录会 ping
       # <registry>/v2/，跨国网络抖动时连接被 reset 会直接判整个 job 失败。
@@ -268,25 +261,21 @@ jobs:
           sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
           sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1 || true
 
+          # 启用 BBR，改善高延迟/丢包链路下的 TCP 吞吐
+          sudo modprobe tcp_bbr 2>/dev/null || true
+          sudo sysctl -w net.core.default_qdisc=fq >/dev/null 2>&1 || true
+          sudo sysctl -w net.ipv4.tcp_congestion_control=bbr >/dev/null 2>&1 || true
+
           # 1. 使用宿主机原生 Docker 构建镜像
           echo "Building image $TAG..."
           docker build -t "$TAG" -f "$DOCKERFILE" "$CONTEXT"
 
-          # 2. 伪造 TTY 环境运行 docker push，使进度条在 GitHub Actions 中实时输出
-          push_with_progress() {
-            if command -v python3 >/dev/null 2>&1; then
-              python3 -c 'import pty, sys; sys.exit(pty.spawn(["docker", "push", sys.argv[1]]))' "$TAG"
-            else
-              docker push "$TAG"
-            fi
-          }
-
-          # 3. 针对跨国网络波动增加最多 5 次重试机制
+          # 2. 针对跨国网络波动增加最多 5 次重试机制
           echo "Pushing image $TAG to Aliyun..."
           success=false
           for i in {1..5}; do
             echo "Push attempt $i/5..."
-            if push_with_progress; then
+            if docker push "$TAG"; then
               success=true
               echo "Push succeeded on attempt $i!"
               break
