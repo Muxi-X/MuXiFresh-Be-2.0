@@ -213,9 +213,9 @@ jobs:
           # register that flag.
           sed -i -E 's/[[:space:]]+-f[[:space:]]+etc\/[^[:space:]]+//g' "app/${SERVICE}/start.sh"
 
-          # 使用 UPX 最大压缩二进制，减小跨境上传体积
+          # UPX -5 拿到接近 --best 的体积收益，耗时远低于 --best/-9
           echo "Compressing binaries with UPX..."
-          find "app/${SERVICE}" -type f -executable -not -name "*.sh" -exec upx --best {} + 2>/dev/null || true
+          find "app/${SERVICE}" -type f -executable -not -name "*.sh" -exec upx -5 {} + 2>/dev/null || true
 
       # docker/login-action 内部只执行一次 docker login，登录会 ping
       # <registry>/v2/，跨国网络抖动时连接被 reset 会直接判整个 job 失败。
