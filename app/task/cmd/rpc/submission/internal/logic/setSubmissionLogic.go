@@ -4,6 +4,7 @@ import (
 	formmodel "MuXiFresh-Be-2.0/app/form/model"
 	"MuXiFresh-Be-2.0/app/task/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -86,10 +87,16 @@ func (l *SetSubmissionLogic) SetSubmission(in *pb.SetSubmissionReq) (*pb.SetSubm
 		return nil, err
 	}
 
+	// 拒绝前端上传失败拼出的坏值（如 "undefined"），并清洗空项
+	urls, err := tool.ValidateResourceURLs(in.Urls)
+	if err != nil {
+		return nil, err
+	}
+
 	newSubmission := &model.Submission{
 		UserId:       userId,
 		AssignmentID: assignmentID,
-		Urls:         in.Urls,
+		Urls:         urls,
 		Status:       globalKey.WaitComment,
 		Version:      count + 1, // 新版本号 = 历史提交数量 + 1
 		CreateAt:     time.Now(),
