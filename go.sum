@@ -373,8 +373,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/ClickHouse/clickhouse-go v1.5.4/go.mod h1:EaI/sW7Azgz9UATzd5ZdZHRUhHgv5+JMS9NSr2smCJI=
 github.com/ClickHouse/clickhouse-go/v2 v2.0.14/go.mod h1:iq2DUGgpA4BBki2CVwrF8x43zqBjdgHtbexkFkh5a6M=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
-github.com/Muxi-X/go-zero v1.4.5-muxi.2 h1:prELnttS8aCs0WVOeyzQSl4IdpnVOZolMLJDUDovmGw=
-github.com/Muxi-X/go-zero v1.4.5-muxi.2/go.mod h1:5WSUwtJm0bYdDZ69GlckigcT6D0EyAPbDaX3unbSY/4=
+github.com/Muxi-X/go-zero v1.4.5-muxi.3 h1:J56GQBAVl+LpjNY9Im28fID1rvRN5I4JT6itDWk2Cuo=
+github.com/Muxi-X/go-zero v1.4.5-muxi.3/go.mod h1:5WSUwtJm0bYdDZ69GlckigcT6D0EyAPbDaX3unbSY/4=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
