@@ -5,6 +5,7 @@ import (
 	"MuXiFresh-Be-2.0/app/task/cmd/rpc/assignment/pb"
 	"MuXiFresh-Be-2.0/app/task/model"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"github.com/jinzhu/copier"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -31,7 +32,11 @@ func (l *SetAssignmentLogic) SetAssignment(in *pb.SetAssignmentReq) (*pb.SetAssi
 	assignment := model.Assignment{}
 	copier.Copy(&assignment, in)
 
-	var err error
+	urls, err := tool.ValidateResourceURLs(assignment.Urls)
+	if err != nil {
+		return nil, err
+	}
+	assignment.Urls = urls
 
 	if in.AssignmentID == globalKey.NULL {
 		//布置
