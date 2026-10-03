@@ -21,10 +21,10 @@ const (
 	// application's trusted storage domain.
 	allowedImageMimeTypes = "image/jpeg;image/png;image/gif;image/webp;image/bmp;image/avif;image/heic;image/heif"
 
-	// Client uploads also support passive document attachments. Keep this as an
-	// allowlist: in particular, do not allow application/zip even though DOCX is
-	// a ZIP container, because Qiniu can identify DOCX from its content and key.
-	allowedDocumentMimeTypes = "application/pdf;application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	// Client uploads also support passive document attachments and ZIP archives.
+	// Keep this as an explicit allowlist so other executable or active content
+	// types remain blocked.
+	allowedDocumentMimeTypes = "application/pdf;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/zip"
 	allowedClientUploadMimes = allowedImageMimeTypes + ";" + allowedDocumentMimeTypes
 	maxUploadSize            = int64(10 << 20)
 
@@ -80,8 +80,9 @@ func GetQNToken(endUser string) string {
 
 // newClientUploadPolicy scopes the token to the caller's directory
 // (bucket:avatar/<endUser>/) via IsPrefixalScope, so a leaked token cannot
-// write outside that prefix. It keeps content detection, the image/PDF/DOCX
-// allowlist, a size limit, short expiry and insert-only semantics.
+// write outside that prefix. It keeps content detection, the
+// image/PDF/DOCX/ZIP allowlist, a size limit, short expiry and insert-only
+// semantics.
 func newClientUploadPolicy(bucket, endUser string) storage.PutPolicy {
 	return storage.PutPolicy{
 		Scope:           bucket + ":" + clientUploadKeyPrefix + endUser + "/",
