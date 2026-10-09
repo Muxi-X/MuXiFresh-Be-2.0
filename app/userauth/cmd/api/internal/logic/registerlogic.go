@@ -38,7 +38,10 @@ var (
 )
 
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
-	email := tool.NormalizeEmail(req.Email)
+	email, err := tool.ValidateEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
 	//verify code
 	if ok := verifyRegisterCode(globalKey.Register, email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")

@@ -35,7 +35,10 @@ type pushMessage struct {
 }
 
 func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendEmailCodeReq) (resp *types.SendEmailCodeResp, err error) {
-	email := tool.NormalizeEmail(req.Email)
+	email, err := tool.ValidateEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
 	// Generate and persist the code synchronously so that a successful response
 	// guarantees the code can be verified, independent of Kafka/SMTP delivery.
 	randCode := tool.RandStringBytes(6)

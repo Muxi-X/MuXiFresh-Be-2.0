@@ -5,6 +5,7 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/accountcenterclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 
@@ -36,15 +37,19 @@ var (
 
 func (l *SetEmailLogic) SetEmail(req *types.SetEmailReq) (resp *types.SetEmailResp, err error) {
 
-	if ok := verifySetEmailCode(globalKey.SetEmail, req.Email, req.VerifyCode); !ok {
+	email, err := tool.ValidateEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if ok := verifySetEmailCode(globalKey.SetEmail, email, req.VerifyCode); !ok {
 		return nil, errors.New("verify code failed")
 	}
 	SetEmailResp, err := l.svcCtx.AccountCenterClient.SetEmail(l.ctx, &accountcenterclient.SetEmailReq{
-		Email:  req.Email,
+		Email:  email,
 		UserId: ctxData.GetUserIdFromCtx(l.ctx),
 	})
 	if err != nil {
-		l.restoreCode(req.Email, req.VerifyCode)
+		l.restoreCode(email, req.VerifyCode)
 		return nil, err
 	}
 
