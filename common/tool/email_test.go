@@ -1,6 +1,9 @@
 package tool
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNormalizeEmail(t *testing.T) {
 	cases := []struct {
@@ -22,6 +25,46 @@ func TestNormalizeEmail(t *testing.T) {
 	for _, c := range cases {
 		if got := NormalizeEmail(c.in); got != c.want {
 			t.Errorf("%s: NormalizeEmail(%q)=%q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}
+
+func TestValidateEmail(t *testing.T) {
+	ok := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"合法", "a@b.com", "a@b.com"},
+		{"域名大写转小写", "User@QQ.COM", "User@qq.com"},
+		{"去首尾空白", "  a@b.com ", "a@b.com"},
+		{"多点域名", "user@mail.co.uk", "user@mail.co.uk"},
+	}
+	for _, c := range ok {
+		got, err := ValidateEmail(c.in)
+		if err != nil {
+			t.Errorf("%s: unexpected error %v", c.name, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%s: ValidateEmail(%q)=%q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+
+	bad := []struct {
+		name string
+		in   string
+	}{
+		{"空串", ""},
+		{"纯空白", "   "},
+		{"无@", "a"},
+		{"无点域名", "a@b"},
+		{"带显示名", "Name <a@b.com>"},
+		{"@后为空", "a@"},
+	}
+	for _, c := range bad {
+		if _, err := ValidateEmail(c.in); !errors.Is(err, ErrInvalidEmail) {
+			t.Errorf("%s: expected ErrInvalidEmail, got %v", c.name, err)
 		}
 	}
 }
