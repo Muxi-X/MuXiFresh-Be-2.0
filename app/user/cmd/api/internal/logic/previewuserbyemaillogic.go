@@ -6,6 +6,7 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 
@@ -38,12 +39,13 @@ func (l *PreviewUserByEmailLogic) PreviewUserByEmail(req *types.PreviewUserByEma
 		return nil, errors.New("permission denied")
 	}
 
-	if req.Email == "" {
+	email := tool.NormalizeEmail(req.Email)
+	if email == "" {
 		return nil, errors.New("email is empty")
 	}
 
 	previewResp, err := l.svcCtx.UserClient.GetUserInfoByEmail(l.ctx, &userclient.GetUserInfoByEmailReq{
-		Email: req.Email,
+		Email: email,
 	})
 	if err != nil {
 		return nil, err

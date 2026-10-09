@@ -130,4 +130,24 @@ func TestPreviewUserByEmail(t *testing.T) {
 			t.Errorf("fields not mapped correctly: %+v", resp)
 		}
 	})
+
+	t.Run("normalizes email domain before rpc", func(t *testing.T) {
+		var got string
+		cli := &fakeUserClient{
+			getUserTypeFn: func(ctx context.Context, in *userclient.GetUserTypeReq) (*userclient.GetUserTypeResp, error) {
+				return &userclient.GetUserTypeResp{UserType: "super_admin"}, nil
+			},
+			getUserInfoByEmailFn: func(ctx context.Context, in *userclient.GetUserInfoByEmailReq) (*userclient.GetUserInfoByEmailResp, error) {
+				got = in.Email
+				return &userclient.GetUserInfoByEmailResp{Email: in.Email}, nil
+			},
+		}
+		l := NewPreviewUserByEmailLogic(ctxWithUser("u1"), &svc.ServiceContext{UserClient: cli})
+		if _, err := l.PreviewUserByEmail(&types.PreviewUserByEmailReq{Email: "User@QQ.COM"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "User@qq.com" {
+			t.Errorf("email not normalized, rpc got %q", got)
+		}
+	})
 }

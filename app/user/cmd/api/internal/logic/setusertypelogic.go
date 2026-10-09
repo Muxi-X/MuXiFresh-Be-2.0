@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/userclient"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 
@@ -41,7 +42,7 @@ func (l *SetUserTypeLogic) SetUserType(req *types.SetUserTypeReq) (resp *types.S
 	}
 
 	setUserTypeResp, err := l.svcCtx.UserClient.SetUserType(l.ctx, &userclient.SetUserTypeReq{
-		Email:    req.Email,
+		Email:    tool.NormalizeEmail(req.Email),
 		UserType: req.UserType,
 	})
 	if err != nil {

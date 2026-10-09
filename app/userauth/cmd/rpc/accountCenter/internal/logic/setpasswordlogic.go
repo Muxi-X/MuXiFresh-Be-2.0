@@ -2,6 +2,7 @@ package logic
 
 import (
 	"MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/internal/svc"
@@ -27,7 +28,7 @@ func NewSetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetPa
 func (l *SetPasswordLogic) SetPassword(in *pb.SetPasswordReq) (*pb.SetPasswordResp, error) {
 
 	_, err := l.svcCtx.UserAuthClient.UpdateByEmail(l.ctx, &model.UserAuth{
-		Email:    in.Email,
+		Email:    tool.NormalizeEmail(in.Email),
 		Password: in.Password,
 	})
 	if err != nil {

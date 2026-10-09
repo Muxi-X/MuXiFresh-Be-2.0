@@ -29,7 +29,7 @@ func NewSetPasswordLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetPa
 func (l *SetPasswordLogic) SetPassword(req *types.SetPasswordReq) (resp *types.SetPasswordResp, err error) {
 
 	setPasswordResp, err := l.svcCtx.AccountCenterClient.SetPassword(l.ctx, &accountcenterclient.SetPasswordReq{
-		Email:    ctxData.GetEmailFromCtx(l.ctx),
+		Email:    tool.NormalizeEmail(ctxData.GetEmailFromCtx(l.ctx)),
 		Password: tool.EncryptedPasswordMD5(req.Password),
 	})
 	if err != nil {

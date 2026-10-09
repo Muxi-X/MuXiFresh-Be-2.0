@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/zeromicro/go-zero/core/stores/mon"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"time"
 )
@@ -16,6 +17,7 @@ type (
 	UserAuthModel interface {
 		userAuthModel
 		FindOneByEmailAndPassword(ctx context.Context, Email string, Password string) (*UserAuth, error)
+		FindOneByUserId(ctx context.Context, userId primitive.ObjectID) (*UserAuth, error)
 		UpdateByEmail(ctx context.Context, data *UserAuth) (*mongo.UpdateResult, error)
 		UpdateByUserId(ctx context.Context, data *UserAuth) (*mongo.UpdateResult, error)
 	}
@@ -45,6 +47,21 @@ func (m *customUserAuthModel) FindOneByEmailAndPassword(ctx context.Context, Ema
 	var data UserAuth
 
 	err := m.conn.FindOne(ctx, &data, bson.M{"email": Email, "password": Password})
+
+	switch err {
+	case nil:
+		return &data, nil
+	case mon.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+func (m *customUserAuthModel) FindOneByUserId(ctx context.Context, userId primitive.ObjectID) (*UserAuth, error) {
+	var data UserAuth
+
+	err := m.conn.FindOne(ctx, &data, bson.M{"userInfoID": userId})
 
 	switch err {
 	case nil:

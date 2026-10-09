@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/internal/svc"
 	"MuXiFresh-Be-2.0/app/user/cmd/rpc/user/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"errors"
 
@@ -25,11 +26,12 @@ func NewGetUserInfoByEmailLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *GetUserInfoByEmailLogic) GetUserInfoByEmail(in *pb.GetUserInfoByEmailReq) (*pb.GetUserInfoByEmailResp, error) {
-	if in.Email == "" {
+	email := tool.NormalizeEmail(in.Email)
+	if email == "" {
 		return nil, errors.New("email is empty")
 	}
 
-	userInfo, err := l.svcCtx.UserInfoModel.FindByEmail(l.ctx, in.Email)
+	userInfo, err := l.svcCtx.UserInfoModel.FindByEmail(l.ctx, email)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errors.New("user not found")

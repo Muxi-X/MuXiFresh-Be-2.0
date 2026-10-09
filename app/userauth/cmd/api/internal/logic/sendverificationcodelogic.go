@@ -35,25 +35,29 @@ type pushMessage struct {
 }
 
 func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendEmailCodeReq) (resp *types.SendEmailCodeResp, err error) {
+	email, err := tool.ValidateEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
 	// Generate and persist the code synchronously so that a successful response
 	// guarantees the code can be verified, independent of Kafka/SMTP delivery.
 	randCode := tool.RandStringBytes(6)
-	if err = code.SetEmailCode(req.Type, req.Email, randCode); err != nil {
+	if err = code.SetEmailCode(req.Type, email, randCode); err != nil {
 		return nil, err
 	}
 
 	body, err := json.Marshal(pushMessage{
-		Email:    req.Email,
+		Email:    email,
 		Type:     req.Type,
 		RandCode: randCode,
 	})
 	if err != nil {
-		l.rollback(req, randCode)
+		l.rollback(email, req.Type, randCode)
 		return nil, err
 	}
 
 	if err = l.svcCtx.KqPusher.Push(l.ctx, string(body)); err != nil {
-		l.rollback(req, randCode)
+		l.rollback(email, req.Type, randCode)
 		return nil, err
 	}
 
@@ -63,8 +67,8 @@ func (l *SendVerificationCodeLogic) SendVerificationCode(req *types.SendEmailCod
 // rollback removes the freshly stored code when it can no longer be delivered,
 // so users are not left with a valid code they will never receive. It only
 // deletes its own value, never a newer code written by a concurrent resend.
-func (l *SendVerificationCodeLogic) rollback(req *types.SendEmailCodeReq, randCode string) {
-	if err := code.DelEmailCodeIfMatch(req.Type, req.Email, randCode); err != nil {
-		l.Errorf("rollback verification code for %s failed: %v", req.Email, err)
+func (l *SendVerificationCodeLogic) rollback(email, codeType, randCode string) {
+	if err := code.DelEmailCodeIfMatch(codeType, email, randCode); err != nil {
+		l.Errorf("rollback verification code for %s failed: %v", email, err)
 	}
 }
