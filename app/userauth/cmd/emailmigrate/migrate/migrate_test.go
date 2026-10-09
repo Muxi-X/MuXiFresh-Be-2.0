@@ -220,3 +220,31 @@ func TestVerifyNoDuplicates_ReportsResidual(t *testing.T) {
 		t.Fatal("verifyNoDuplicates must fail when duplicates remain")
 	}
 }
+
+// 纯空白邮箱会被规范化为空串，空串在 sparse 唯一索引下仍参与唯一性 -> 必须摘除。
+func TestRun_UnsetsWhitespaceOnlyEmail(t *testing.T) {
+	client, db := testClient(t)
+	ui := client.Database(db).Collection("userinfo")
+	id := primitive.NewObjectID()
+	mustInsert(t, ui, bson.M{"_id": id, "email": "   "})
+
+	if err := Run(context.Background(), client, db, true, &bytes.Buffer{}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if _, ok := getEmail(t, ui, id); ok {
+		t.Fatal("whitespace-only email must be unset")
+	}
+}
+
+// 多条显式空串不参与 scanEmailGroups，但会撞 sparse 唯一索引 -> 自检必须拒绝。
+func TestVerifyNoDuplicates_RejectsMultipleEmpty(t *testing.T) {
+	client, db := testClient(t)
+	ui := client.Database(db).Collection("userinfo")
+	mustInsert(t, ui,
+		bson.M{"_id": primitive.NewObjectID(), "email": ""},
+		bson.M{"_id": primitive.NewObjectID(), "email": ""},
+	)
+	if err := verifyNoDuplicates(context.Background(), ui, client.Database(db).Collection("userauth"), &bytes.Buffer{}); err == nil {
+		t.Fatal("verifyNoDuplicates must reject multiple empty emails")
+	}
+}

@@ -208,6 +208,15 @@ func verifyNoDuplicates(ctx context.Context, userinfo, userauth *mongo.Collectio
 		name string
 		coll *mongo.Collection
 	}{{"userinfo", userinfo}, {"userauth", userauth}} {
+		// 显式存储的空串不被 scanEmailGroups 覆盖，但会参与 sparse 唯一索引，
+		// 多条空串仍会互相冲突，故单独拒绝。
+		emptyCount, err := c.coll.CountDocuments(ctx, bson.M{"email": ""})
+		if err != nil {
+			return err
+		}
+		if emptyCount > 1 {
+			return fmt.Errorf("治理后 %s 仍有空邮箱字段 (count=%d)，请人工排查", c.name, emptyCount)
+		}
 		groups, err := scanEmailGroups(ctx, c.coll)
 		if err != nil {
 			return err
@@ -240,6 +249,17 @@ func flattenDomains(ctx context.Context, coll *mongo.Collection, name string, ap
 			return err
 		}
 		norm := tool.NormalizeEmail(doc.Email)
+		if norm == "" {
+			// 纯空白会被规范化为空串；空串在 sparse 唯一索引下仍参与唯一性，
+			// 多条空串会互相冲突。故直接摘除字段（等价于"未设邮箱"）。
+			fmt.Fprintf(out, "[flatten] %s _id=%s empty email -> unset\n", name, doc.ID.Hex())
+			if apply {
+				if _, err := coll.UpdateOne(ctx, bson.M{"_id": doc.ID}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
+					return fmt.Errorf("摘除 %s/%s 空邮箱: %w", name, doc.ID.Hex(), err)
+				}
+			}
+			continue
+		}
 		if norm == doc.Email {
 			continue
 		}
