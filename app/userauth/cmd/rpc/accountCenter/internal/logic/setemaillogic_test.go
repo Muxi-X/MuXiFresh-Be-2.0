@@ -33,15 +33,15 @@ func duplicateKeyErr() error {
 type fakeSetEmailUserInfo struct {
 	model.UserInfoModel
 	findByEmailFn func(ctx context.Context, email string) (*model.UserInfo, error)
-	updateFn      func(ctx context.Context, data *model.UserInfo) (*mongo.UpdateResult, error)
+	updateEmailFn func(ctx context.Context, id primitive.ObjectID, email string) (*mongo.UpdateResult, error)
 }
 
 func (f *fakeSetEmailUserInfo) FindByEmail(ctx context.Context, email string) (*model.UserInfo, error) {
 	return f.findByEmailFn(ctx, email)
 }
 
-func (f *fakeSetEmailUserInfo) Update(ctx context.Context, data *model.UserInfo) (*mongo.UpdateResult, error) {
-	return f.updateFn(ctx, data)
+func (f *fakeSetEmailUserInfo) UpdateEmailByID(ctx context.Context, id primitive.ObjectID, email string) (*mongo.UpdateResult, error) {
+	return f.updateEmailFn(ctx, id, email)
 }
 
 type fakeSetEmailUserAuth struct {
@@ -69,7 +69,7 @@ func TestSetEmail_RejectsOccupiedEmail(t *testing.T) {
 		findByEmailFn: func(context.Context, string) (*model.UserInfo, error) {
 			return &model.UserInfo{ID: otherID}, nil
 		},
-		updateFn: func(context.Context, *model.UserInfo) (*mongo.UpdateResult, error) {
+		updateEmailFn: func(context.Context, primitive.ObjectID, string) (*mongo.UpdateResult, error) {
 			t.Fatal("userinfo update must not run when email is occupied")
 			return nil, nil
 		},
@@ -97,8 +97,8 @@ func TestSetEmail_UpdatesBothCollections(t *testing.T) {
 		findByEmailFn: func(context.Context, string) (*model.UserInfo, error) {
 			return nil, model.ErrNotFound
 		},
-		updateFn: func(_ context.Context, data *model.UserInfo) (*mongo.UpdateResult, error) {
-			infoEmail = data.Email
+		updateEmailFn: func(_ context.Context, _ primitive.ObjectID, email string) (*mongo.UpdateResult, error) {
+			infoEmail = email
 			return &mongo.UpdateResult{}, nil
 		},
 	}
@@ -127,7 +127,7 @@ func TestSetEmail_RollsBackUserAuthOnUserInfoFail(t *testing.T) {
 		findByEmailFn: func(context.Context, string) (*model.UserInfo, error) {
 			return nil, model.ErrNotFound
 		},
-		updateFn: func(context.Context, *model.UserInfo) (*mongo.UpdateResult, error) {
+		updateEmailFn: func(context.Context, primitive.ObjectID, string) (*mongo.UpdateResult, error) {
 			return nil, errors.New("userinfo down")
 		},
 	}

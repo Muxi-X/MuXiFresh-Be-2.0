@@ -172,3 +172,51 @@ func TestRun_ApplyConvergesAndEnablesUniqueIndex(t *testing.T) {
 		t.Fatalf("keeper email changed after second run: %q", e)
 	}
 }
+
+// userauth 自身存在重复（孤儿/不一致），且 userinfo 侧并无重复邮箱时，也必须收敛，
+// 否则 userauth 唯一索引建不起来（H1）。
+func TestRun_ResolvesUserauthOnlyDuplicate(t *testing.T) {
+	client, db := testClient(t)
+	ctx := context.Background()
+	ui := client.Database(db).Collection("userinfo")
+	ua := client.Database(db).Collection("userauth")
+
+	keepInfo := primitive.NewObjectIDFromTimestamp(time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC))
+	orphanInfo := primitive.NewObjectIDFromTimestamp(time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC))
+	// userinfo 侧：一个持有邮箱，另一个无邮箱（模拟已摘/不一致）
+	mustInsert(t, ui,
+		bson.M{"_id": keepInfo, "email": "dup@qq.com"},
+		bson.M{"_id": orphanInfo, "student_id": "S9"},
+	)
+	// userauth 侧：两条同邮箱，其中一条指向无邮箱的 userinfo
+	mustInsert(t, ua,
+		bson.M{"_id": primitive.NewObjectID(), "userInfoID": keepInfo, "email": "dup@qq.com"},
+		bson.M{"_id": primitive.NewObjectID(), "userInfoID": orphanInfo, "email": "Dup@QQ.com"},
+	)
+
+	if err := Run(ctx, client, db, true, &bytes.Buffer{}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+
+	for _, spec := range []mongodb.IndexSpec{
+		{Collection: "userinfo", Name: "userinfo_email_unique", Unique: true, Sparse: true, Keys: bson.D{{Key: "email", Value: 1}}},
+		{Collection: "userauth", Name: "userauth_email_unique", Unique: true, Sparse: true, Keys: bson.D{{Key: "email", Value: 1}}},
+	} {
+		if err := mongodb.EnsureIndex(ctx, client, db, spec); err != nil {
+			t.Fatalf("unique index %s should build: %v", spec.Name, err)
+		}
+	}
+}
+
+// 治理后若仍残留规范化，verifyNoDuplicates 必须报错（阻止盲目重启导致建索引 panic）。
+func TestVerifyNoDuplicates_ReportsResidual(t *testing.T) {
+	client, db := testClient(t)
+	ui := client.Database(db).Collection("userinfo")
+	mustInsert(t, ui,
+		bson.M{"_id": primitive.NewObjectID(), "email": "x@qq.com"},
+		bson.M{"_id": primitive.NewObjectID(), "email": "x@qq.com"},
+	)
+	if err := verifyNoDuplicates(context.Background(), ui, client.Database(db).Collection("userauth"), &bytes.Buffer{}); err == nil {
+		t.Fatal("verifyNoDuplicates must fail when duplicates remain")
+	}
+}

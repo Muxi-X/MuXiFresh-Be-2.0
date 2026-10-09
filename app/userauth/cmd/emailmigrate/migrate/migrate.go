@@ -18,27 +18,207 @@ import (
 
 // Run 治理存量邮箱。apply=false 为 dry-run，只输出计划不改动。
 //
-// 返回错误仅代表数据库操作失败；业务层冲突（如 keeper 已绑定不同学号）以警告
-// 输出、不中止。核心不变量：结束后同一邮箱（域名小写）至多对应一个账号。
+// 返回错误代表数据库操作失败，或治理后仍存在规范化重复（末尾只读自检失败）——
+// 后者绝不能静默放过，否则 accountCenter 启动建唯一索引会 panic。
+//
+// 两个集合各自收敛重复，且每个非 keeper 账号都先摘 userauth 再摘 userinfo：
+// 中途失败后重跑，两集合的扫描都能独立发现并继续收敛，命令是幂等且可自愈的。
 func Run(ctx context.Context, client *mongo.Client, dbName string, apply bool, out io.Writer) error {
 	userinfo := client.Database(dbName).Collection("userinfo")
 	userauth := client.Database(dbName).Collection("userauth")
 
-	// 先拍平域名，再处理重复：3 组重复仅域名大小写不同，拍平后才成为完全相同
-	// 的 email，后续按规范化值分组可一并命中。
 	if err := flattenDomains(ctx, userinfo, "userinfo", apply, out); err != nil {
 		return err
 	}
 	if err := flattenDomains(ctx, userauth, "userauth", apply, out); err != nil {
 		return err
 	}
-	if err := resolveDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
+	if err := resolveUserinfoDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
+		return err
+	}
+	if err := resolveUserauthDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
 		return err
 	}
 
-	if !apply {
+	if apply {
+		if err := verifyNoDuplicates(ctx, userinfo, userauth, out); err != nil {
+			return err
+		}
+	} else {
 		fmt.Fprintln(out, "[dry-run] 未做任何改动；加 -apply 才会写入。")
 	}
+	return nil
+}
+
+// scanEmailGroups 返回集合中按规范化 email 分组的 account（_id），只含 email 为
+// 非空字符串的文档。
+func scanEmailGroups(ctx context.Context, coll *mongo.Collection) (map[string][]primitive.ObjectID, error) {
+	cur, err := coll.Find(ctx, bson.M{"email": bson.M{"$type": "string"}})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	groups := map[string][]primitive.ObjectID{}
+	for cur.Next(ctx) {
+		var doc struct {
+			ID    primitive.ObjectID `bson:"_id"`
+			Email string             `bson:"email"`
+		}
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		key := tool.NormalizeEmail(doc.Email)
+		if key == "" {
+			continue
+		}
+		groups[key] = append(groups[key], doc.ID)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
+// newerFirst 降序排序：ObjectID 越大越新（高位含时间戳），首元素为 keeper。
+func newerFirst(ids []primitive.ObjectID) {
+	sort.Slice(ids, func(i, j int) bool { return ids[i].Hex() > ids[j].Hex() })
+}
+
+// resolveUserinfoDuplicates 以 userinfo 分组为准收敛重复：keeper 取较新账号；
+// 非 keeper 的学号迁到 keeper 后，先摘 userauth 邮箱、再摘 userinfo 邮箱。
+func resolveUserinfoDuplicates(ctx context.Context, userinfo, userauth *mongo.Collection, apply bool, out io.Writer) error {
+	groups, err := scanEmailGroups(ctx, userinfo)
+	if err != nil {
+		return fmt.Errorf("列出 userinfo 邮箱: %w", err)
+	}
+
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		ids := groups[key]
+		if len(ids) < 2 {
+			continue
+		}
+		newerFirst(ids)
+		keeper := ids[0]
+		fmt.Fprintf(out, "[duplicate] userinfo %q count=%d keeper=%s\n", key, len(ids), keeper.Hex())
+
+		for _, old := range ids[1:] {
+			if err := migrateStudentID(ctx, userinfo, keeper, old, apply, out); err != nil {
+				return err
+			}
+			if err := unsetEmails(ctx, userinfo, userauth, old, apply, out); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// resolveUserauthDuplicates 收敛 userauth 自身的规范化重复（如孤儿 userauth、或
+// 与 userinfo 不一致的数据）。keeper 优先取"其 userinfo 仍持有该邮箱"的账号，
+// 否则取较新一条；其余摘除 userauth 邮箱。此步保证 userauth 唯一索引也能建起来。
+func resolveUserauthDuplicates(ctx context.Context, userinfo, userauth *mongo.Collection, apply bool, out io.Writer) error {
+	groups, err := scanEmailGroups(ctx, userauth)
+	if err != nil {
+		return fmt.Errorf("列出 userauth 邮箱: %w", err)
+	}
+
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		ids := groups[key]
+		if len(ids) < 2 {
+			continue
+		}
+		newerFirst(ids)
+		keeper := ids[0]
+		// 优先保留 userinfo 侧仍是该邮箱的账号，避免 keeper 与 userinfo 错位。
+		for _, id := range ids {
+			owner, err := userinfoEmailOwner(ctx, userinfo, id)
+			if err != nil {
+				return err
+			}
+			if owner == key {
+				keeper = id
+				break
+			}
+		}
+		fmt.Fprintf(out, "[duplicate] userauth %q count=%d keeper=%s\n", key, len(ids), keeper.Hex())
+
+		for _, id := range ids {
+			if id == keeper {
+				continue
+			}
+			fmt.Fprintf(out, "  unset email: userauth _id=%s\n", id.Hex())
+			if apply {
+				if _, err := userauth.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
+					return fmt.Errorf("摘除 userauth/%s 邮箱: %w", id.Hex(), err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// userinfoEmailOwner 返回 userinfo 中该账号当前的规范化邮箱（无该文档或无邮箱
+// 返回空串）。
+func userinfoEmailOwner(ctx context.Context, userinfo *mongo.Collection, id primitive.ObjectID) (string, error) {
+	var doc struct {
+		Email string `bson:"email"`
+	}
+	if err := userinfo.FindOne(ctx, bson.M{"_id": id}).Decode(&doc); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", nil
+		}
+		return "", err
+	}
+	return tool.NormalizeEmail(doc.Email), nil
+}
+
+// unsetEmails 摘除非 keeper 账号的邮箱：先 userauth（可自愈，失败重跑时 userinfo
+// 分组仍能发现残留），后 userinfo。
+func unsetEmails(ctx context.Context, userinfo, userauth *mongo.Collection, old primitive.ObjectID, apply bool, out io.Writer) error {
+	fmt.Fprintf(out, "  unset email: userauth(userInfoID=%s), userinfo/%s\n", old.Hex(), old.Hex())
+	if !apply {
+		return nil
+	}
+	if _, err := userauth.UpdateMany(ctx, bson.M{"userInfoID": old}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
+		return fmt.Errorf("摘除 userauth(userInfoID=%s) 邮箱: %w", old.Hex(), err)
+	}
+	if _, err := userinfo.UpdateOne(ctx, bson.M{"_id": old}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
+		return fmt.Errorf("摘除 userinfo/%s 邮箱: %w", old.Hex(), err)
+	}
+	return nil
+}
+
+// verifyNoDuplicates 治理后只读自检：两集合任一仍有规范化重复即报错，阻止在
+// 未清理干净时盲目重启服务（建唯一索引会 panic）。
+func verifyNoDuplicates(ctx context.Context, userinfo, userauth *mongo.Collection, out io.Writer) error {
+	for _, c := range []struct {
+		name string
+		coll *mongo.Collection
+	}{{"userinfo", userinfo}, {"userauth", userauth}} {
+		groups, err := scanEmailGroups(ctx, c.coll)
+		if err != nil {
+			return err
+		}
+		for key, ids := range groups {
+			if len(ids) > 1 {
+				return fmt.Errorf("治理后 %s 仍有规范化重复邮箱 %q (count=%d)，请人工排查", c.name, key, len(ids))
+			}
+		}
+	}
+	fmt.Fprintln(out, "[verify] 两集合均无规范化重复邮箱。")
 	return nil
 }
 
@@ -71,64 +251,6 @@ func flattenDomains(ctx context.Context, coll *mongo.Collection, name string, ap
 		}
 	}
 	return cur.Err()
-}
-
-// resolveDuplicates 对 userinfo 按规范化 email 分组，每组保留 _id 最大（较新）
-// 的一条为 keeper；其余账号的 student_id 迁移到 keeper 后，摘除其 email。
-func resolveDuplicates(ctx context.Context, userinfo, userauth *mongo.Collection, apply bool, out io.Writer) error {
-	cur, err := userinfo.Find(ctx, bson.M{"email": bson.M{"$type": "string"}})
-	if err != nil {
-		return fmt.Errorf("列出 userinfo 邮箱: %w", err)
-	}
-	defer cur.Close(ctx)
-
-	groups := map[string][]primitive.ObjectID{}
-	var order []string
-	for cur.Next(ctx) {
-		var doc struct {
-			ID    primitive.ObjectID `bson:"_id"`
-			Email string             `bson:"email"`
-		}
-		if err := cur.Decode(&doc); err != nil {
-			return err
-		}
-		key := tool.NormalizeEmail(doc.Email)
-		if _, ok := groups[key]; !ok {
-			order = append(order, key)
-		}
-		groups[key] = append(groups[key], doc.ID)
-	}
-	if err := cur.Err(); err != nil {
-		return err
-	}
-	sort.Strings(order)
-
-	for _, key := range order {
-		ids := groups[key]
-		if len(ids) < 2 {
-			continue
-		}
-		// 较新 = ObjectID 较大（其高位含时间戳），降序取首为 keeper。
-		sort.Slice(ids, func(i, j int) bool { return ids[i].Hex() > ids[j].Hex() })
-		keeper := ids[0]
-		fmt.Fprintf(out, "[duplicate] %q count=%d keeper=%s raw=%s\n", key, len(ids), keeper.Hex(), key)
-
-		for _, id := range ids[1:] {
-			if err := migrateStudentID(ctx, userinfo, keeper, id, apply, out); err != nil {
-				return err
-			}
-			fmt.Fprintf(out, "  unset email: userinfo/%s, userauth(userInfoID=%s)\n", id.Hex(), id.Hex())
-			if apply {
-				if _, err := userinfo.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
-					return fmt.Errorf("摘除 userinfo/%s 邮箱: %w", id.Hex(), err)
-				}
-				if _, err := userauth.UpdateMany(ctx, bson.M{"userInfoID": id}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
-					return fmt.Errorf("摘除 userauth(userInfoID=%s) 邮箱: %w", id.Hex(), err)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // migrateStudentID 把旧账号的学号迁移到 keeper：

@@ -21,6 +21,7 @@ type (
 		FindByUserIds(ctx context.Context, userIds []string) ([]*UserInfo, error)
 		FindByEmail(ctx context.Context, email string) (*UserInfo, error)
 		UpdateByEmail(ctx context.Context, data *UserInfo) (*mongo.UpdateResult, error)
+		UpdateEmailByID(ctx context.Context, id primitive.ObjectID, email string) (*mongo.UpdateResult, error)
 		FindByUserType(ctx context.Context, userType string) ([]*UserInfo, error)
 	}
 
@@ -92,6 +93,16 @@ func (m *defaultUserInfoModel) UpdateByEmail(ctx context.Context, data *UserInfo
 
 	res, err := m.conn.UpdateOne(ctx, bson.M{"email": data.Email}, bson.M{"$set": data})
 	return res, err
+}
+
+// UpdateEmailByID 只更新指定账号的 email 字段。
+// 整文档 $set 会因结构体字段（如 TestResult）的 omitempty 不生效而把零值写回，
+// 改绑邮箱时不能用它；此方法把写入范围收窄到 email 与 updateAt。
+func (m *defaultUserInfoModel) UpdateEmailByID(ctx context.Context, id primitive.ObjectID, email string) (*mongo.UpdateResult, error) {
+	return m.conn.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{
+		"email":    email,
+		"updateAt": time.Now(),
+	}})
 }
 
 func (m *defaultUserInfoModel) FindByUserType(ctx context.Context, userType string) ([]*UserInfo, error) {
