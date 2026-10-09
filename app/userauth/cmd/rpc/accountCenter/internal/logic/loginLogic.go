@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/internal/svc"
@@ -24,7 +25,7 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 }
 
 func (l *LoginLogic) Login(in *pb.LoginVerifyReq) (*pb.LoginVerifyResp, error) {
-	userAuth, err := l.svcCtx.UserAuthClient.FindOneByEmailAndPassword(l.ctx, in.Email, in.Password)
+	userAuth, err := l.svcCtx.UserAuthClient.FindOneByEmailAndPassword(l.ctx, tool.NormalizeEmail(in.Email), in.Password)
 	if err != nil {
 		return nil, err
 	}

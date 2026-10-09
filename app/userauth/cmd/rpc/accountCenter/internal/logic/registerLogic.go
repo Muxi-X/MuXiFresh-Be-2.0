@@ -28,10 +28,11 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 }
 
 func (l *RegisterLogic) Register(in *pb.RegisterDataReq) (*pb.RegisterDataResp, error) {
+	email := tool.NormalizeEmail(in.Email)
 	userInfo := &model.UserInfo{
 		Avatar:    l.svcCtx.Config.DefaultUserInfo.Avatar,
 		NickName:  l.svcCtx.Config.DefaultUserInfo.NickName + "_" + tool.RandStringBytes(6),
-		Email:     in.Email,
+		Email:     email,
 		StudentID: globalKey.NULL,
 		UserType:  globalKey.Freshman,
 		UpdateAt:  time.Now(),
@@ -41,7 +42,7 @@ func (l *RegisterLogic) Register(in *pb.RegisterDataReq) (*pb.RegisterDataResp, 
 		return nil, err
 	}
 	if err := l.svcCtx.UserAuthClient.Insert(l.ctx, &model.UserAuth{
-		Email:      in.Email,
+		Email:      email,
 		Password:   in.Password,
 		UserInfoID: userInfo.ID,
 		UpdateAt:   time.Now(),

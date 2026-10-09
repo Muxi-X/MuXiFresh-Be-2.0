@@ -38,18 +38,19 @@ var (
 )
 
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
+	email := tool.NormalizeEmail(req.Email)
 	//verify code
-	if ok := verifyRegisterCode(globalKey.Register, req.Email, req.VerifyCode); !ok {
+	if ok := verifyRegisterCode(globalKey.Register, email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")
 	}
 
 	//写入数据库
 	registerDataResp, err := l.svcCtx.AccountCenterClient.Register(l.ctx, &accountcenterclient.RegisterDataReq{
-		Email:    req.Email,
+		Email:    email,
 		Password: tool.EncryptedPasswordMD5(req.Password),
 	})
 	if err != nil {
-		l.restoreCode(req.Email, req.VerifyCode)
+		l.restoreCode(email, req.VerifyCode)
 		return nil, err
 	}
 	//gen token

@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/api/internal/common/code"
 	"MuXiFresh-Be-2.0/common/ctxData"
 	"MuXiFresh-Be-2.0/common/globalKey"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"fmt"
 	"github.com/golang-jwt/jwt/v4"
@@ -39,13 +40,14 @@ var (
 
 func (l *AuthSetPasswordLogic) AuthSetPassword(req *types.AuthSetPasswordReq) (resp *types.AuthSetPasswordResp, err error) {
 
-	if ok := verifySetPasswordCode(globalKey.SetPassword, req.Email, req.VerifyCode); !ok {
+	email := tool.NormalizeEmail(req.Email)
+	if ok := verifySetPasswordCode(globalKey.SetPassword, email, req.VerifyCode); !ok {
 		return nil, fmt.Errorf("verify code failed")
 	}
 	//gen auth token
-	AuthSetPasswordToken, err := signAuthSetPasswordToken(l.svcCtx.Config.JwtAuthChPass.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuthChPass.AccessExpire, req.Email)
+	AuthSetPasswordToken, err := signAuthSetPasswordToken(l.svcCtx.Config.JwtAuthChPass.AccessSecret, time.Now().Unix(), l.svcCtx.Config.JwtAuthChPass.AccessExpire, email)
 	if err != nil {
-		l.restoreCode(req.Email, req.VerifyCode)
+		l.restoreCode(email, req.VerifyCode)
 		return nil, err
 	}
 	return &types.AuthSetPasswordResp{

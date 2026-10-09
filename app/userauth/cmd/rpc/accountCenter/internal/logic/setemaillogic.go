@@ -4,6 +4,7 @@ import (
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/internal/svc"
 	"MuXiFresh-Be-2.0/app/userauth/cmd/rpc/accountCenter/pb"
 	"MuXiFresh-Be-2.0/app/userauth/model"
+	"MuXiFresh-Be-2.0/common/tool"
 	"context"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -30,8 +31,9 @@ func (l *SetEmailLogic) SetEmail(in *pb.SetEmailReq) (*pb.SetEmailResp, error) {
 	if err != nil {
 		return nil, err
 	}
+	email := tool.NormalizeEmail(in.Email)
 	userAuth := &model.UserAuth{
-		Email:      in.Email,
+		Email:      email,
 		UserInfoID: uid,
 	}
 	_, err = l.svcCtx.UserAuthClient.UpdateByUserId(l.ctx, userAuth)
@@ -40,7 +42,7 @@ func (l *SetEmailLogic) SetEmail(in *pb.SetEmailReq) (*pb.SetEmailResp, error) {
 	}
 	userInfo := &model.UserInfo{
 		ID:    uid,
-		Email: in.Email,
+		Email: email,
 	}
 	_, err = l.svcCtx.UserInfoClient.Update(l.ctx, userInfo)
 	if err != nil {
