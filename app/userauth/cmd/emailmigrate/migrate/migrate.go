@@ -112,7 +112,7 @@ func resolveUserinfoDuplicates(ctx context.Context, userinfo, userauth *mongo.Co
 			if err := migrateStudentID(ctx, userinfo, keeper, old, apply, out); err != nil {
 				return err
 			}
-			if err := unsetEmails(ctx, userinfo, userauth, old, apply, out); err != nil {
+			if err := unsetEmails(ctx, userinfo, userauth, old, key, apply, out); err != nil {
 				return err
 			}
 		}
@@ -186,13 +186,14 @@ func userinfoEmailOwner(ctx context.Context, userinfo *mongo.Collection, id prim
 }
 
 // unsetEmails 摘除非 keeper 账号的邮箱：先 userauth（可自愈，失败重跑时 userinfo
-// 分组仍能发现残留），后 userinfo。
-func unsetEmails(ctx context.Context, userinfo, userauth *mongo.Collection, old primitive.ObjectID, apply bool, out io.Writer) error {
-	fmt.Fprintf(out, "  unset email: userauth(userInfoID=%s), userinfo/%s\n", old.Hex(), old.Hex())
+// 分组仍能发现残留），后 userinfo。userauth 侧按 userInfoID + 重复组邮箱过滤，
+// 只清清属于该重复组的那一封，避免误删该账号其他不一致的登录邮箱。
+func unsetEmails(ctx context.Context, userinfo, userauth *mongo.Collection, old primitive.ObjectID, email string, apply bool, out io.Writer) error {
+	fmt.Fprintf(out, "  unset email: userauth(userInfoID=%s, email=%q), userinfo/%s\n", old.Hex(), email, old.Hex())
 	if !apply {
 		return nil
 	}
-	if _, err := userauth.UpdateMany(ctx, bson.M{"userInfoID": old}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
+	if _, err := userauth.UpdateMany(ctx, bson.M{"userInfoID": old, "email": email}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
 		return fmt.Errorf("摘除 userauth(userInfoID=%s) 邮箱: %w", old.Hex(), err)
 	}
 	if _, err := userinfo.UpdateOne(ctx, bson.M{"_id": old}, bson.M{"$unset": bson.M{"email": ""}}); err != nil {
