@@ -9,6 +9,7 @@ import (
 	"io"
 	"sort"
 
+	"MuXiFresh-Be-2.0/common/mongodb"
 	"MuXiFresh-Be-2.0/common/tool"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,25 +19,35 @@ import (
 
 // Run 治理存量邮箱。apply=false 为 dry-run，只输出计划不改动。
 //
-// 返回错误代表数据库操作失败，或治理后仍存在规范化重复（末尾只读自检失败）——
-// 后者绝不能静默放过，否则 accountCenter 启动建唯一索引会 panic。
+// 顺序：先收敛重复（摘除非 keeper 邮箱），再拍平域名。若先拍平，旧账号的大写域名
+// 邮箱会与 keeper 撞成同一个值，触发已有的 email 唯一索引报错（大小写不同的旧值
+// 之所以能并存，正是因为当时字符串不同）。两个集合各先收敛，且 userauth 先于
+// userinfo，使中途失败后重跑，两集合扫描都能独立发现并继续收敛（幂等、可自愈）。
 //
-// 两个集合各自收敛重复，且每个非 keeper 账号都先摘 userauth 再摘 userinfo：
-// 中途失败后重跑，两集合的扫描都能独立发现并继续收敛，命令是幂等且可自愈的。
+// 返回错误代表数据库操作失败，或治理后仍存在规范化重复（末尾只读自检失败）。
 func Run(ctx context.Context, client *mongo.Client, dbName string, apply bool, out io.Writer) error {
 	userinfo := client.Database(dbName).Collection("userinfo")
 	userauth := client.Database(dbName).Collection("userauth")
 
-	if err := flattenDomains(ctx, userinfo, "userinfo", apply, out); err != nil {
-		return err
+	if apply {
+		// 历史遗留的 `email_1`（非 sparse unique）会把多条"无邮箱"记录视作同一
+		// null 而互相冲突，并阻止域名拍平（同值）。治理前必须移除，否则第一次
+		// 写库即 E11000。按名+键精确匹配，不误删其他索引。
+		if err := dropLegacyEmailIndexes(ctx, client, dbName, out); err != nil {
+			return err
+		}
 	}
-	if err := flattenDomains(ctx, userauth, "userauth", apply, out); err != nil {
+
+	if err := resolveUserauthDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
 		return err
 	}
 	if err := resolveUserinfoDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
 		return err
 	}
-	if err := resolveUserauthDuplicates(ctx, userinfo, userauth, apply, out); err != nil {
+	if err := flattenDomains(ctx, userinfo, "userinfo", apply, out); err != nil {
+		return err
+	}
+	if err := flattenDomains(ctx, userauth, "userauth", apply, out); err != nil {
 		return err
 	}
 
@@ -47,6 +58,19 @@ func Run(ctx context.Context, client *mongo.Client, dbName string, apply bool, o
 	} else {
 		fmt.Fprintln(out, "[dry-run] 未做任何改动；加 -apply 才会写入。")
 	}
+	return nil
+}
+
+// dropLegacyEmailIndexes 删除两个集合上历史遗留的 `email_1`（键为 {email:1}）。
+// 新代码会在 accountCenter 启动时创建 sparse 版本，届时"无邮箱"可多条共存。
+func dropLegacyEmailIndexes(ctx context.Context, client *mongo.Client, dbName string, out io.Writer) error {
+	for _, coll := range []string{"userinfo", "userauth"} {
+		if err := mongodb.DropIndexByKey(ctx, client, dbName, coll, "email_1",
+			bson.D{{Key: "email", Value: 1}}); err != nil {
+			return fmt.Errorf("删除历史 email_1 索引 %s: %w", coll, err)
+		}
+	}
+	fmt.Fprintln(out, "[index] removed legacy email_1 (if present) on userinfo/userauth")
 	return nil
 }
 
