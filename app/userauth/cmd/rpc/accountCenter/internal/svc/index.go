@@ -41,5 +41,17 @@ func EnsureAccountIndexes(url, db string) error {
 			Keys:       bson.D{{Key: "email", Value: 1}},
 		},
 	}
-	return mongodb.EnsureIndexes(ctx, client, db, specs...)
+	if err := mongodb.EnsureIndexes(ctx, client, db, specs...); err != nil {
+		return err
+	}
+
+	// 历史遗留的 `email_1`（非 sparse unique）会把多条"无邮箱"记录视为同一 null
+	// 而互相冲突。新索引建好后删除它，按名+键精确匹配，不误删其他索引。
+	for _, coll := range []string{"userinfo", "userauth"} {
+		if err := mongodb.DropIndexByKey(ctx, client, db, coll, "email_1",
+			bson.D{{Key: "email", Value: 1}}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

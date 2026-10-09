@@ -248,3 +248,52 @@ func TestVerifyNoDuplicates_RejectsMultipleEmpty(t *testing.T) {
 		t.Fatal("verifyNoDuplicates must reject multiple empty emails")
 	}
 }
+
+// 生产 userinfo 上历史遗留的非 sparse 唯一索引 email_1 会阻止拍平（同值）与
+// 多次摘除（null）。Run 必须先删除它，否则 apply 第一步即 E11000。
+func TestRun_DropsLegacyEmailIndex(t *testing.T) {
+	client, db := testClient(t)
+	ctx := context.Background()
+	ui := client.Database(db).Collection("userinfo")
+	ua := client.Database(db).Collection("userauth")
+
+	oidOld := primitive.NewObjectIDFromTimestamp(time.Date(2023, 9, 28, 0, 0, 0, 0, time.UTC))
+	oidNew := primitive.NewObjectIDFromTimestamp(time.Date(2023, 10, 8, 0, 0, 0, 0, time.UTC))
+	mustInsert(t, ui,
+		bson.M{"_id": oidOld, "email": "1625089984@QQ.COM"},
+		bson.M{"_id": oidNew, "email": "1625089984@qq.com"},
+	)
+	// 历史遗留的非 sparse 唯一索引（Mongo 默认名），大小写不同故可并存
+	if _, err := ui.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("email_1"),
+	}); err != nil {
+		t.Fatalf("seed legacy index: %v", err)
+	}
+
+	if err := Run(ctx, client, db, true, &bytes.Buffer{}); err != nil {
+		t.Fatalf("apply should drop legacy index and succeed: %v", err)
+	}
+
+	names := map[string]bool{}
+	if cur, err := ui.Indexes().List(ctx); err == nil {
+		defer cur.Close(ctx)
+		for cur.Next(ctx) {
+			var ix struct {
+				Name string `bson:"name"`
+			}
+			_ = cur.Decode(&ix)
+			names[ix.Name] = true
+		}
+	}
+	if names["email_1"] {
+		t.Fatal("legacy email_1 index must be dropped")
+	}
+	if e, _ := getEmail(t, ui, oidNew); e != "1625089984@qq.com" {
+		t.Fatalf("keeper email wrong: %q", e)
+	}
+	if _, ok := getEmail(t, ui, oidOld); ok {
+		t.Fatal("old email must be unset")
+	}
+	_ = ua
+}
