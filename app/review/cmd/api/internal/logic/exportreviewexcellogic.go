@@ -33,6 +33,8 @@ func NewExportReviewExcelLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	}
 }
 
+// ExportReviewExcel 导出审阅名单 Excel。全量（group 为空或 All）时首个工作表为
+// 包含全部记录的「全部」，其后按组拆表；指定具体组时仅导出该组。
 func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelReq) (*bytes.Buffer, string, error) {
 	//管理员认证
 	getUserTypeResp, err := l.svcCtx.UserClient.GetUserType(l.ctx, &userclient.GetUserTypeReq{
@@ -55,64 +57,36 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 	// --- 生成 Excel ---
 	f := excelize.NewFile()
 
-	groupNames := []struct{ en, cn string }{
-		{"Product", "产品组"},
-		{"Design", "设计组"},
-		{"Frontend", "前端组"},
-		{"Backend", "后端组"},
-		{"Android", "安卓组"},
-		{"Operation", "运营组"},
-	}
-
-	// 按组拆 sheet：req.Group 为空或全量哨兵时导出所有组（空组也建表头），否则仅该组
-	targets := groupNames
-	if req.Group != "" && !isGroupAll(req.Group) {
-		targets = nil
-		for _, g := range groupNames {
-			if g.en == req.Group {
-				targets = []struct{ en, cn string }{g}
-				break
-			}
-		}
-		if targets == nil {
-			targets = groupNames
-		}
-	}
-
-	byGroup := make(map[string][]types.Row)
-	for _, r := range rows {
-		byGroup[r.Group] = append(byGroup[r.Group], r)
-	}
+	sheets := buildExportSheets(req.Group, rows)
 
 	headers := []string{"姓名", "年级", "学校", "组别", "性别", "专业", "电话", "QQ", "报名表ID", "录取状态", "知识储备", "报名理由", "自我简介", "附加问题", "面试评价"}
 
-	for idx, g := range targets {
-		sheet := g.cn
+	for idx, s := range sheets {
 		if idx == 0 {
-			f.SetSheetName("Sheet1", sheet)
+			f.SetSheetName("Sheet1", s.name)
 		} else {
-			f.NewSheet(sheet)
+			f.NewSheet(s.name)
 		}
 		for i, h := range headers {
-			f.SetCellValue(sheet, string(rune('A'+i))+"1", h)
+			f.SetCellValue(s.name, string(rune('A'+i))+"1", h)
 		}
-		for rowIdx, r := range byGroup[g.en] {
+		for rowIdx, r := range s.rows {
 			row := strconv.Itoa(rowIdx + 2)
-			f.SetCellValue(sheet, "A"+row, r.Name)
-			f.SetCellValue(sheet, "B"+row, r.Grade)
-			f.SetCellValue(sheet, "C"+row, r.School)
-			f.SetCellValue(sheet, "D"+row, convert.GroupCvtChinese(r.Group))
-			f.SetCellValue(sheet, "E"+row, r.Gender)
-			f.SetCellValue(sheet, "F"+row, r.Major)
-			f.SetCellValue(sheet, "G"+row, r.Phone)
-			f.SetCellValue(sheet, "H"+row, r.QQ)
-			f.SetCellValue(sheet, "I"+row, r.FormID)
-			f.SetCellValue(sheet, "J"+row, r.AdmissionStatus)
-			f.SetCellValue(sheet, "K"+row, r.Understanding)
-			f.SetCellValue(sheet, "L"+row, r.Reason)
-			f.SetCellValue(sheet, "M"+row, r.SelfIntro)
-			f.SetCellValue(sheet, "N"+row, r.ExtraQuestion)
-			f.SetCellValue(sheet, "O"+row, r.InterviewComment)
+			f.SetCellValue(s.name, "A"+row, r.Name)
+			f.SetCellValue(s.name, "B"+row, r.Grade)
+			f.SetCellValue(s.name, "C"+row, r.School)
+			f.SetCellValue(s.name, "D"+row, convert.GroupCvtChinese(r.Group))
+			f.SetCellValue(s.name, "E"+row, r.Gender)
+			f.SetCellValue(s.name, "F"+row, r.Major)
+			f.SetCellValue(s.name, "G"+row, r.Phone)
+			f.SetCellValue(s.name, "H"+row, r.QQ)
+			f.SetCellValue(s.name, "I"+row, r.FormID)
+			f.SetCellValue(s.name, "J"+row, r.AdmissionStatus)
+			f.SetCellValue(s.name, "K"+row, r.Understanding)
+			f.SetCellValue(s.name, "L"+row, r.Reason)
+			f.SetCellValue(s.name, "M"+row, r.SelfIntro)
+			f.SetCellValue(s.name, "N"+row, r.ExtraQuestion)
+			f.SetCellValue(s.name, "O"+row, r.InterviewComment)
 		}
 	}
 
@@ -122,4 +96,51 @@ func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelR
 	}
 	fileName := fmt.Sprintf("review_%d_%s.xlsx", time.Now().Unix(), uuid.New().String())
 	return buf, fileName, nil
+}
+
+// groupNames 是导出按组拆 sheet 时的固定顺序与中文表名。
+var groupNames = []struct{ en, cn string }{
+	{"Product", "产品组"},
+	{"Design", "设计组"},
+	{"Frontend", "前端组"},
+	{"Backend", "后端组"},
+	{"Android", "安卓组"},
+	{"Operation", "运营组"},
+}
+
+// exportSheet 是导出的一个工作表：name 为表名，rows 为该表数据。
+type exportSheet struct {
+	name string
+	rows []types.Row
+}
+
+// buildExportSheets 按请求的 group 产出有序工作表列表。
+// 全量导出（group 为空或 All）时，首个工作表为包含全部记录的"全部"表，
+// 其后按 groupNames 顺序为各组拆表；指定具体组时只含该组；未知组回退为各组拆表。
+func buildExportSheets(group string, rows []types.Row) []exportSheet {
+	byGroup := make(map[string][]types.Row)
+	for _, r := range rows {
+		byGroup[r.Group] = append(byGroup[r.Group], r)
+	}
+
+	if group == "" || isGroupAll(group) {
+		sheets := make([]exportSheet, 0, len(groupNames)+1)
+		sheets = append(sheets, exportSheet{name: "全部", rows: rows})
+		for _, g := range groupNames {
+			sheets = append(sheets, exportSheet{name: g.cn, rows: byGroup[g.en]})
+		}
+		return sheets
+	}
+
+	for _, g := range groupNames {
+		if g.en == group {
+			return []exportSheet{{name: g.cn, rows: byGroup[g.en]}}
+		}
+	}
+
+	sheets := make([]exportSheet, 0, len(groupNames))
+	for _, g := range groupNames {
+		sheets = append(sheets, exportSheet{name: g.cn, rows: byGroup[g.en]})
+	}
+	return sheets
 }
