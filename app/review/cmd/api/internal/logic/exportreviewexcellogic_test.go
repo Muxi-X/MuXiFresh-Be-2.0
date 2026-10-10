@@ -24,6 +24,11 @@ func TestBuildExportSheets(t *testing.T) {
 		if len(sheets[0].rows) != len(rows) {
 			t.Fatalf("全部 sheet has %d rows, want %d", len(sheets[0].rows), len(rows))
 		}
+		for i, r := range rows {
+			if sheets[0].rows[i].Name != r.Name {
+				t.Fatalf("全部 row[%d] = %q, want %q", i, sheets[0].rows[i].Name, r.Name)
+			}
+		}
 		for i, g := range groupNames {
 			if sheets[i+1].name != g.cn {
 				t.Fatalf("sheet[%d] = %q, want %q", i+1, sheets[i+1].name, g.cn)

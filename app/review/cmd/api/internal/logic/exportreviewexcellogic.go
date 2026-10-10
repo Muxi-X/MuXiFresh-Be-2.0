@@ -33,6 +33,8 @@ func NewExportReviewExcelLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	}
 }
 
+// ExportReviewExcel 导出审阅名单 Excel。全量（group 为空或 All）时首个工作表为
+// 包含全部记录的「全部」，其后按组拆表；指定具体组时仅导出该组。
 func (l *ExportReviewExcelLogic) ExportReviewExcel(req *types.ExportReviewExcelReq) (*bytes.Buffer, string, error) {
 	//管理员认证
 	getUserTypeResp, err := l.svcCtx.UserClient.GetUserType(l.ctx, &userclient.GetUserTypeReq{
