@@ -9,9 +9,9 @@ Nacos 的服务配置与基础设施配置约定见 [deploy/nacos/README.md](dep
 本项目通过 `go.mod replace` 使用 go-zero 的团队 fork（**含 etcd 认证补丁**）。
 
 - **为什么**：etcd 启用用户名密码认证后，token 默认 5 分钟过期，而 clientv3 的 watch 不自动刷新 token（[etcd#12385](https://github.com/etcd-io/etcd/issues/12385)），go-zero 又无限紧密重试同一 client，导致 `invalid auth token` 周期性刷屏、消耗 CPU 与日志磁盘。etcd 官方明确不修（[#17384](https://github.com/etcd-io/etcd/issues/17384)），go-zero 的修复 [PR #5709](https://github.com/zeromicro/go-zero/pull/5709) 未合并，只能 fork 打补丁
-- **引用**：`replace github.com/zeromicro/go-zero => github.com/Muxi-X/go-zero v1.4.5-muxi.3`
-- **补丁仓库**：[Muxi-X/go-zero](https://github.com/Muxi-X/go-zero)（分支 `muxi-patch`，tag `v1.4.5-muxi.3`，[diff](https://github.com/Muxi-X/go-zero/compare/v1.4.5...muxi-patch)）
-- **补丁要点**：watch/keepalive 失败时移除缓存 client 惰性重建（新 token）+ 防 goroutine 泄漏/死锁 + `load()` 遇已关闭 client 立即返回避免 watcher 永久卡死，思路对齐上游 PR #5709，以 `[Muxi Patch]` 标记
+- **引用**：`replace github.com/zeromicro/go-zero => github.com/Muxi-X/go-zero v1.4.5-muxi.4`
+- **补丁仓库**：[Muxi-X/go-zero](https://github.com/Muxi-X/go-zero)（分支 `muxi-patch`，tag `v1.4.5-muxi.4`，[diff](https://github.com/Muxi-X/go-zero/compare/v1.4.5...muxi-patch)）
+- **补丁要点**：watch/keepalive 失败时移除缓存 client 惰性重建（新 token）+ 防 goroutine 泄漏/死锁 + `load()` 遇已关闭 client 立即返回避免 watcher 永久卡死 + 失效按 client 身份判断避免误关并发重建出的新 client，思路对齐上游 PR #5709，以 `[Muxi Patch]` 标记
 - **升级注意**：升级 go-zero 需重新 apply 补丁；若上游 #5709 合并可评估替换回官方
 
 ## 服务
