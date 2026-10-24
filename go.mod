@@ -1,8 +1,6 @@
 module MuXiFresh-Be-2.0
 
-go 1.23.0
-
-toolchain go1.23.1
+go 1.27.3
 
 require (
 	github.com/alicebob/miniredis/v2 v2.30.0
